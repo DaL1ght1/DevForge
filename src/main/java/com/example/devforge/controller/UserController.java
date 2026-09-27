@@ -17,6 +17,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Objects;
 import java.util.UUID;
 
 @RestController
@@ -44,8 +45,11 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
-    public UserResponseDto updateUser(@PathVariable UUID id,@RequestBody @Valid UserUpdateDto dto) {
-        return userService.updateUser(id, dto);
+    public UserResponseDto updateUser(@AuthenticationPrincipal Jwt jwt,
+                                      @PathVariable UUID id,
+                                      @RequestBody @Valid UserUpdateDto dto) {
+        UUID actualKeycloakId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
+        return userService.updateUser(actualKeycloakId,id, dto);
     }
 
     @DeleteMapping("/{id}")

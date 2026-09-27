@@ -1,8 +1,8 @@
 package com.example.devforge.dto;
 
 import com.example.devforge.entity.ServiceStatus;
-import com.example.devforge.entity.TemplateVersion;
 
+import java.io.Serializable;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -12,9 +12,9 @@ public record AppServiceResponse(
         String description,
         String repositoryUrl,
         ServiceStatus status,
-        TemplateVersion templateVersion,
+        TemplateVersionResponse templateVersion,
         UserResponseDto owner,
         Instant createdAt,
         Instant updatedAt
-) {
+) implements Serializable {
 }

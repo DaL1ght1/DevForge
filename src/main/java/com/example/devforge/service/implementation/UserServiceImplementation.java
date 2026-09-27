@@ -6,6 +6,7 @@ import com.example.devforge.dto.UserResponseDto;
 import com.example.devforge.dto.UserUpdateDto;
 import com.example.devforge.entity.User;
 import com.example.devforge.entity.UserRole;
+import com.example.devforge.exception.UnauthorizedAccessException;
 import com.example.devforge.exception.UserAlreadyExistsException;
 import com.example.devforge.exception.UserNotFoundException;
 import com.example.devforge.mapper.UserMapper;
@@ -76,9 +77,12 @@ public class UserServiceImplementation implements UserService {
     }
 
     @Override
-    public UserResponseDto updateUser(UUID id, UserUpdateDto dto) {
+    public UserResponseDto updateUser(UUID actualKeycloakId, UUID id, UserUpdateDto dto) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new UserNotFoundException("User not found with id: " + id));
+        if (!(user.getKeycloakId().equals(actualKeycloakId))) {
+            throw new UnauthorizedAccessException("You are not authorized to update this user");
+        }
 
         String username = dto.username().trim().toLowerCase(Locale.ROOT);
         String email = dto.email().trim().toLowerCase(Locale.ROOT);

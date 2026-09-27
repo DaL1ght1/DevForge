@@ -13,7 +13,7 @@ public interface UserService {
     UserResponseDto registerUser(UserCreationDto dto);
     UserResponseDto getOrCreateCurrentUser(Jwt jwt);
     UserResponseDto getUserById(UUID id);
-    UserResponseDto updateUser(UUID id, UserUpdateDto dto);
+    UserResponseDto updateUser(UUID actualKeycloakId, UUID id, UserUpdateDto dto);
     void deleteUser(UUID id);
     Page<UserResponseDto> listUsers(Pageable pageable);
 }

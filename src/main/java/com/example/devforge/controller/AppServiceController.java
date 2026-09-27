@@ -37,15 +37,17 @@ public class AppServiceController {
     }
 
     @PostMapping
-    public AppServiceResponse createAppService(@AuthenticationPrincipal Jwt jwt, @RequestBody @Valid AppServiceCreationDto appService) {
-        UUID userid = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
-        return appServiceMapper.toResponse(appServiceService.createService(userid, appService));
+    public AppServiceResponse createAppService(/*@AuthenticationPrincipal Jwt jwt,*/ @RequestBody @Valid AppServiceCreationDto appService) {
+       // UUID KeycloakId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
+        UUID KeycloakId = UUID.fromString("5edf9415-1b39-4a0d-a051-aa84ee2cb739");
+        return appServiceMapper.toResponse(appServiceService.createService(KeycloakId, appService));
 
     }
 
     @DeleteMapping("/{id}")
-    public void deleteAppService(@PathVariable UUID id) {
-        appServiceService.deleteService(id);
+    public void deleteAppService(@AuthenticationPrincipal Jwt jwt ,@PathVariable UUID id) {
+        UUID keycloakId  = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
+        appServiceService.deleteService(keycloakId, id);
     }
 
 }

@@ -1,18 +1,24 @@
 package com.example.devforge.service.implementation;
 
+import com.example.devforge.client.ProvisionerClient;
 import com.example.devforge.dto.AppServiceCreationDto;
 import com.example.devforge.entity.AppService;
+import com.example.devforge.entity.ServiceStatus;
 import com.example.devforge.entity.TemplateVersion;
 import com.example.devforge.entity.User;
 import com.example.devforge.exception.AppServiceNotFoundException;
 import com.example.devforge.exception.AppTemplateVersionNotFoundException;
+import com.example.devforge.exception.UnauthorizedAccessException;
 import com.example.devforge.exception.UserNotFoundException;
+import com.example.devforge.generator.TemplateContextResolver;
+import com.example.devforge.generator.model.TemplateContext;
 import com.example.devforge.mapper.AppServiceMapper;
 import com.example.devforge.repository.AppServiceRepository;
 import com.example.devforge.repository.TemplateVersionRepository;
 import com.example.devforge.repository.UserRepository;
 import com.example.devforge.service.AppServiceService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -23,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.UUID;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class AppServiceImplementation implements AppServiceService {
 
@@ -30,18 +37,37 @@ public class AppServiceImplementation implements AppServiceService {
     private final UserRepository userRepository;
     private final TemplateVersionRepository templateVersionRepository;
     private final AppServiceMapper appServiceMapper;
+    private final ProvisionerClient provisionerClient;
+    private final TemplateContextResolver contextResolver;
 
     @Override
     @Transactional
-    public AppService createService(UUID userId, AppServiceCreationDto appService) {
-        TemplateVersion templateVersion = templateVersionRepository.findById(appService.templateVersionId())
-                .orElseThrow(() -> new AppTemplateVersionNotFoundException(appService.templateVersionId()));
-        User user = userRepository.findByKeycloakId(userId).orElseThrow(() -> new UserNotFoundException("User not found with id " + userId));
-        AppService service = appServiceMapper.toEntity(appService);
+    public AppService createService(UUID userKeycloakId, AppServiceCreationDto appServiceDto) {
+        TemplateVersion templateVersion = templateVersionRepository.findById(appServiceDto.templateVersionId())
+                .orElseThrow(() -> new AppTemplateVersionNotFoundException(appServiceDto.templateVersionId()));
+
+        User user = userRepository.findByKeycloakId(userKeycloakId)
+                .orElseThrow(() -> new UserNotFoundException("User not found with KeycloakId " + userKeycloakId));
+
+        AppService service = appServiceMapper.toEntity(appServiceDto);
         service.setOwner(user);
         service.setTemplateVersion(templateVersion);
-        appServiceRepository.save(service);
-        return service;
+        service.setStatus(ServiceStatus.CREATING);
+        AppService saved = appServiceRepository.save(service);
+        TemplateContext ctx = contextResolver.resolve(appServiceDto);
+        ProvisionerClient.GenerateProjectRequest genRequest = new ProvisionerClient.GenerateProjectRequest(
+                ctx.serviceName(),
+                templateVersion.getTemplate().getName(),
+                ctx.packageName(),
+                ctx.className(),
+                ctx.description(),
+                ctx.databaseType()
+        );
+        var response = provisionerClient.generate(genRequest);
+
+        log.info("Provisioner generated project at: {}", response.outputPath());
+
+        return saved;
     }
 
     @Override
@@ -57,8 +83,11 @@ public class AppServiceImplementation implements AppServiceService {
 
     @Override
     @Transactional
-    public void deleteService(UUID id) {
-        AppService service = appServiceRepository.findById(id).orElseThrow(() -> new AppServiceNotFoundException(id));
+    public void deleteService(UUID userKeycloakId, UUID serviceId) {
+        AppService service = appServiceRepository.findById(serviceId).orElseThrow(() -> new AppServiceNotFoundException(serviceId));
+        if (!service.getOwner().getKeycloakId().equals(userKeycloakId)) {
+            throw new UnauthorizedAccessException("User not authorized to delete this service");
+        }
         appServiceRepository.delete(service);
     }
 

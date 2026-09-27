@@ -18,7 +18,7 @@ INSERT INTO app_template (id,
                           build_tool,
                           database_type)
 VALUES ('a0000000-0000-0000-0000-000000000001',
-        'spring-boot-maven',
+        'spring_Boot_Maven',
         'JAVA',
         'SPRING_BOOT',
         'MAVEN',

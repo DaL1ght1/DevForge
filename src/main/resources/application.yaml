@@ -9,7 +9,8 @@ spring:
       resourceserver:
         jwt:
           issuer-uri: http://localhost:8180/realms/DevForge
-
+provisioner:
+  url: ${PROVISIONER_URL:http://localhost:8081}
 server:
   servlet:
     context-path: /api/v1

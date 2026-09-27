@@ -11,5 +11,5 @@ public interface AppServiceService {
     AppService createService(UUID userId, AppServiceCreationDto appService);
     Page<AppService> listServices(int page, int size);
     AppService getService(UUID id);
-    void deleteService(UUID id);
+    void deleteService(UUID userKeycloakId,UUID serviceId);
 }
