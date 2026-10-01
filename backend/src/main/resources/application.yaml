@@ -1,0 +1,39 @@
+spring:
+  application:
+    name: DevForge
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_SERVER_URL}/realms/DevForge
+provisioner:
+  url: ${PROVISIONER_URL}
+server:
+  servlet:
+    context-path: /api/v1
+
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    persist-authorization: true
+  api-docs:
+    path: /v3/api-docs
+
+
+keycloak:
+  server-url: ${KEYCLOAK_SERVER_URL}
+  realm: DevForge
+  adminClientId: devforge-admin
+  adminClientSecret: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
+
+devforge:
+  admin:
+    username: ${DEVFORGE_ADMIN_USERNAME}
+    email: ${DEVFORGE_ADMIN_EMAIL}
+    password: ${DEVFORGE_ADMIN_PASSWORD}
+    first-name: ${DEVFORGE_ADMIN_FIRST_NAME}
+    last-name: ${DEVFORGE_ADMIN_LAST_NAME}
