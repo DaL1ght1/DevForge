@@ -1,0 +1,14 @@
+id: "spring_Boot_Maven"
+name: "Spring Boot Maven Microservice"
+language: "JAVA"
+framework: "SPRING_BOOT"
+buildTool: "MAVEN"
+version: "1.0.0"
+description: "Stable spring boot microservice for robust apps"
+
+variables:
+  - name: SERVICE_NAME
+    required: true
+  - name: DATABASE_TYPE
+    default: "POSTGRESQL"
+    options: ["POSTGRESQL", "MYSQL", "NONE"]

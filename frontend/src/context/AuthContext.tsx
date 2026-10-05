@@ -19,7 +19,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (credentials: LoginRequest) => Promise<void>;
   register: (data: UserCreationDto) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
 
@@ -59,7 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
       }
     }
-    initAuth();
+    initAuth().then(r => r).catch(e => console.error("Failed to initialize auth:", e));
   }, [refreshProfile]);
 
   useEffect(() => {
@@ -92,7 +92,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     try {
       await authApi.register(data);
-      // Auto-login with registered credentials
       await login({
         username: data.username,
         password: data.password,
@@ -102,10 +101,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const logout = () => {
-    tokenStorage.clear();
-    setUser(null);
-    router.push("/login");
+  const logout = async () => {
+    try {
+      const refreshToken = tokenStorage.getRefreshToken();
+      if (refreshToken) {
+        await authApi.logout({ refreshToken });
+      } else {
+        await authApi.logout();
+      }
+    } catch (error) {
+      console.warn("Backend logout failed:", error);
+    } finally {
+      tokenStorage.clear();
+      setUser(null);
+      router.push("/login");
+    }
   };
 
   return (

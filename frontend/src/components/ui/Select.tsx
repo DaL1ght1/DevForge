@@ -38,7 +38,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
             "focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500",
             "disabled:opacity-50 disabled:bg-zinc-950 disabled:cursor-not-allowed",
             error
-              ? "border-red-500 focus:ring-red-500 focus:border-red-500"
+              ? "focus:ring-red-500 focus:border-red-500"
               : "border-zinc-800 hover:border-zinc-700",
             className
           )}

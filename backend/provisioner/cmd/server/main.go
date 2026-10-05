@@ -1,59 +1,70 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 
-	httpHandler "devforge/provisioner/internal"
+	"devforge/provisioner/internal/config"
 	"devforge/provisioner/internal/generator"
 	"devforge/provisioner/internal/git"
 	"devforge/provisioner/internal/github"
+	provKafka "devforge/provisioner/internal/kafka"
 )
 
 func main() {
-	templatesDir := os.Getenv("TEMPLATES_DIR")
-	if templatesDir == "" {
-		templatesDir = "../templates"
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("[Config Error] %v", err)
+	}
+	log.Printf("[Provisioner] Using templates: %s", cfg.TemplatesDir)
+	log.Printf("[Provisioner] Using workspace: %s", cfg.WorkspaceDir)
+	gen := generator.NewProjectGenerator(cfg.TemplatesDir)
+	ghClient, err := github.NewClient(cfg.GithubToken, cfg.GithubOwner, cfg.GithubIsOrg)
+	if err != nil {
+		log.Fatalf("GitHub client init failed: %v", err)
+	}
+	gitPusher := git.NewPusher(cfg.GithubToken)
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+	worker := provKafka.NewProvisionWorker(
+		cfg.KafkaBrokers,
+		cfg.RequestTopic,
+		cfg.ResponseTopic,
+		cfg.KafkaGroupID,
+		gen,
+		ghClient,
+		gitPusher,
+		cfg.WorkspaceDir,
+	)
+	go worker.Start(ctx)
+	server := &http.Server{
+		Addr: ":" + cfg.Port,
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/health" && r.Method == http.MethodGet {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				_, _ = w.Write([]byte(`{"status":"UP"}`))
+				return
+			}
+			http.NotFound(w, r)
+		}),
 	}
 
-	outputWorkspace := os.Getenv("WORKSPACE_DIR")
-	if outputWorkspace == "" {
-		outputWorkspace = "../workspace"
-	}
-	if err := os.MkdirAll(outputWorkspace, 0755); err != nil {
-		log.Fatalf("cannot create workspace dir: %v", err)
-	}
+	go func() {
+		log.Printf("Provisioner listening on :%s (/health)", cfg.Port)
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalf("HTTP server error: %v", err)
+		}
+	}()
 
-	ghToken := os.Getenv("GITHUB_TOKEN")
-	if ghToken == "" {
-		log.Fatal("GITHUB_TOKEN environment variable is required")
-	}
-
-	ghOwner := os.Getenv("GITHUB_OWNER")
-	if ghOwner == "" {
-		log.Fatal("GITHUB_OWNER environment variable is required")
-	}
-
-	isOrg := os.Getenv("GITHUB_IS_ORG") == "true"
-
-	gen := generator.NewProjectGenerator(templatesDir)
-	ghClient, _ := github.NewClient(ghToken, ghOwner, isOrg)
-	gitPusher := git.NewPusher(ghToken)
-
-	handler := httpHandler.NewHandler(gen, ghClient, gitPusher, outputWorkspace)
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("POST /api/v1/provision", handler.Provision)
-	mux.HandleFunc("GET /health", handler.Health)
-
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8081"
-	}
-
-	log.Printf("Provisioner listening on :%s (templates: %s, workspace: %s)", port, templatesDir, outputWorkspace)
-	if err := http.ListenAndServe(":"+port, mux); err != nil {
-		log.Fatalf("Server stopped: %v", err)
-	}
+	<-ctx.Done()
+	log.Println("Shutting down provisioner...")
+	_ = server.Shutdown(context.Background())
+	worker.Close()
+	log.Println("Provisioner stopped cleanly.")
 }

@@ -9,8 +9,37 @@ spring:
       resourceserver:
         jwt:
           issuer-uri: ${KEYCLOAK_SERVER_URL}/realms/DevForge
-provisioner:
-  url: ${PROVISIONER_URL}
+
+  kafka:
+    bootstrap-servers:
+      - ${KAFKA_BOOTSTRAP_SERVERS}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
+      acks: all
+      client-id: ${SERVICE_NAME}-producer
+      retries: 3
+    consumer:
+      group-id: ${SERVICE_NAME}-consumer
+      auto-offset-reset: latest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      max-poll-records: 100
+      properties:
+        spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JacksonJsonDeserializer
+        spring.json.value.default.type: com.example.devforge.client.ProvisionerClient$ProvisionResponse
+        spring.json.use.type.headers: false
+        spring.json.trusted.packages: "com.example.devforge.client,com.example.devforge.*"
+    listener:
+      ack-mode: BATCH
+      concurrency: 3
+      type: single
+      observation-enabled: true
+  threads:
+    virtual:
+      enabled: true
+
+
 server:
   servlet:
     context-path: /api/v1
@@ -37,3 +66,13 @@ devforge:
     password: ${DEVFORGE_ADMIN_PASSWORD}
     first-name: ${DEVFORGE_ADMIN_FIRST_NAME}
     last-name: ${DEVFORGE_ADMIN_LAST_NAME}
+
+  kafka:
+    topics:
+      requestTopic: ${REQUEST_TOPIC}-requestTopic
+      responseTopic: ${RESPONSE_TOPIC}-responseTopic
+      partitions: 1
+      replicas: 1
+
+    group:
+      id: ${GROUP_ID}-group

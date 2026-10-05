@@ -1,14 +1,29 @@
-export type ServiceStatus = "CREATING" | "PENDING" | "DEPLOYED" | "FAILED";
+export type ServiceStatus = "CREATING" | "PENDING"| "PUSHED" | "DEPLOYED" | "FAILED" | "READY";
 
 export type DeploymentStatus = "DEPLOYING" | "PENDING" | "DEPLOYED" | "FAILED";
 
 export type UserRole = "DEVELOPER" | "ADMIN";
 
-export type TemplateLanguage = "JAVA" | "GO" | "PYTHON" | "TYPESCRIPT";
+export type TemplateLanguage = "JAVA" | "GO" | "PYTHON" | "TYPESCRIPT" | string;
 
-export type TemplateFramework = "SPRING_BOOT" | "GIN" | "FASTAPI" | "NEXT_JS";
+export type TemplateFramework =
+  | "SPRING_BOOT"
+  | "GIN"
+  | "FASTAPI"
+  | "NEXT_JS"
+  | string;
 
-export type BuildTool = "MAVEN" | "GRADLE" | "GO_MODULES" | "PIP";
+export type BuildTool =
+  | "MAVEN"
+  | "GRADLE"
+  | "GO_MODULES"
+  | "PIP"
+  | string;
+
+export interface TemplateFilter {
+  framework?: TemplateFramework;
+  buildTool?: BuildTool;
+}
 
 export interface UserResponseDto {
   id: string;
@@ -47,11 +62,12 @@ export interface TemplateVersionResponse {
 export interface AppTemplateResponse {
   id: string;
   name: string;
-  language: TemplateLanguage;
-  framework: TemplateFramework;
-  buildTool: BuildTool;
+  language: TemplateLanguage | string;
+  framework: TemplateFramework | string;
+  buildTool: BuildTool | string;
   databaseType: string;
   createdAt: string;
+  templateVersionId?: string;
 }
 
 export interface AppServiceCreationDto {
@@ -59,6 +75,11 @@ export interface AppServiceCreationDto {
   description?: string;
   templateVersionId: string;
   databaseType: string;
+  language?: string;
+  framework?: string;
+  buildTool?: string;
+  packageIdentifier?: string;
+  port?: number;
 }
 
 export interface AppServiceResponse {

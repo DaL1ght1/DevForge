@@ -35,11 +35,11 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             id={inputId}
             ref={ref}
             className={cn(
-              "w-full bg-zinc-900 border border-zinc-750 text-zinc-100 placeholder:text-zinc-500 text-sm rounded-md px-3 py-2 transition-colors",
+              "w-full bg-zinc-900 border border-zinc-750 text-zinc-100 text-sm rounded-md px-3 py-2 transition-colors",
               "focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500",
               "disabled:opacity-50 disabled:bg-zinc-950 disabled:cursor-not-allowed",
               error
-                ? "border-red-500 focus:ring-red-500 focus:border-red-500"
+                ? "focus:ring-red-500 focus:border-red-500"
                 : "border-zinc-800 hover:border-zinc-700",
               leftIcon && "pl-9",
               rightIcon && "pr-9",

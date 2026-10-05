@@ -143,7 +143,8 @@ async function request<T>(
     throw new ApiClientError(errorData);
   }
 
-  return response.json();
+  const text = await response.text();
+  return text ? JSON.parse(text) : ({} as T);
 }
 
 export const api = {

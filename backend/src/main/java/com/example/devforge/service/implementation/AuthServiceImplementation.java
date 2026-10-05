@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -25,6 +26,7 @@ import org.springframework.web.client.RestClientException;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -39,6 +41,7 @@ public class AuthServiceImplementation implements AuthService {
     private final KeycloakProperties props;
     private final UserRepository userRepository;
     private final UserMapper userMapper;
+    private final com.example.devforge.config.keycloak.KeycloakAdminClient keycloakAdminClient;
 
     @Override
     public AuthResponse login(LoginRequest request) {
@@ -120,6 +123,36 @@ public class AuthServiceImplementation implements AuthService {
         } catch (RestClientException e) {
             log.error("Token refresh failed due to Keycloak error", e);
             throw new IdentityProviderException("Token refresh failed: identity provider unavailable", e);
+        }
+    }
+
+    @Override
+    public void logout(String refreshToken, Jwt jwt) {
+        if (refreshToken != null && !refreshToken.isBlank()) {
+            try {
+                MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+                form.add("client_id", CLIENT_ID);
+                form.add("refresh_token", refreshToken.trim());
+
+                keycloakRestClient.post()
+                        .uri("/realms/{realm}/protocol/openid-connect/logout", props.realm())
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .body(form)
+                        .retrieve()
+                        .toBodilessEntity();
+                log.info("Successfully revoked Keycloak refresh token");
+            } catch (RestClientException e) {
+                log.warn("Keycloak OIDC logout with refresh token failed or token already invalid: {}", e.getMessage());
+            }
+        }
+
+        if (jwt != null && jwt.getSubject() != null) {
+            try {
+                UUID userId = UUID.fromString(jwt.getSubject());
+                keycloakAdminClient.logoutUser(userId);
+            } catch (Exception e) {
+                log.warn("Keycloak admin logout failed for subject {}: {}", jwt.getSubject(), e.getMessage());
+            }
         }
     }
 }

@@ -146,6 +146,19 @@ public class KeycloakAdminClient {
         }
     }
 
+    public void logoutUser(UUID userId) {
+        try {
+            keycloakRestClient.post()
+                    .uri("/admin/realms/{realm}/users/{id}/logout", props.realm(), userId)
+                    .headers(bearer())
+                    .retrieve()
+                    .toBodilessEntity();
+            log.info("Successfully terminated Keycloak sessions for user {}", userId);
+        } catch (RestClientException e) {
+            log.warn("Keycloak admin logout failed for user {}: {}", userId, e.getMessage());
+        }
+    }
+
     // ---------------------------------------------------------------- internals
     private static @NonNull Map<String, Object> getBody(UserCreationDto dto) {
         String username = dto.username().trim().toLowerCase(Locale.ROOT);

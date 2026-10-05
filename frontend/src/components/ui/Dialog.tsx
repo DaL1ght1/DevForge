@@ -39,13 +39,11 @@ export function Dialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/70 backdrop-blur-xs transition-opacity animate-in fade-in"
         onClick={onClose}
       />
 
-      {/* Modal Dialog */}
       <div
         className={cn(
           "relative z-50 w-full max-w-lg bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl",

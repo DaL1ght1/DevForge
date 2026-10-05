@@ -17,6 +17,7 @@ import com.example.devforge.repository.AppServiceRepository;
 import com.example.devforge.repository.TemplateVersionRepository;
 import com.example.devforge.repository.UserRepository;
 import com.example.devforge.service.AppServiceService;
+import com.example.devforge.service.KafkaService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -37,13 +38,15 @@ public class AppServiceImplementation implements AppServiceService {
     private final UserRepository userRepository;
     private final TemplateVersionRepository templateVersionRepository;
     private final AppServiceMapper appServiceMapper;
-    private final ProvisionerClient provisionerClient;
     private final TemplateContextResolver contextResolver;
+    private final KafkaService kafkaService;
 
     @Override
     @Transactional
     public AppService createService(UUID userKeycloakId, AppServiceCreationDto appServiceDto) {
         TemplateVersion templateVersion = templateVersionRepository.findById(appServiceDto.templateVersionId())
+                .or(() -> templateVersionRepository.findFirstByTemplateIdAndActiveTrue(appServiceDto.templateVersionId()))
+                .or(() -> templateVersionRepository.findFirstByTemplateId(appServiceDto.templateVersionId()))
                 .orElseThrow(() -> new AppTemplateVersionNotFoundException(appServiceDto.templateVersionId()));
         log.info("Provisioning service with template: {}", templateVersion.getTemplate().getName());
         User user = userRepository.findByKeycloakId(userKeycloakId)
@@ -53,12 +56,11 @@ public class AppServiceImplementation implements AppServiceService {
         service.setOwner(user);
         service.setTemplateVersion(templateVersion);
         service.setStatus(ServiceStatus.CREATING);
-
         AppService saved = appServiceRepository.save(service);
-
         TemplateContext ctx = contextResolver.resolve(appServiceDto);
 
         ProvisionerClient.ProvisionRequest provRequest = new ProvisionerClient.ProvisionRequest(
+                saved.getId(),
                 ctx.serviceName(),
                 templateVersion.getTemplate().getName(),
                 ctx.packageName(),
@@ -66,15 +68,9 @@ public class AppServiceImplementation implements AppServiceService {
                 ctx.description(),
                 ctx.databaseType()
         );
-
-        ProvisionerClient.ProvisionResponse response = provisionerClient.provision(provRequest);
-
-        log.info("Provisioned service at repository: {}", response.repositoryUrl());
-
-        saved.setRepositoryUrl(response.repositoryUrl());
-        saved.setStatus(ServiceStatus.PENDING);
-
-        return appServiceRepository.save(saved);
+        kafkaService.sendProvisionRequest(provRequest);
+        log.info("Service {} saved with id {}, provisioning requested", ctx.serviceName(), saved.getId());
+        return saved;
     }
 
     @Override
