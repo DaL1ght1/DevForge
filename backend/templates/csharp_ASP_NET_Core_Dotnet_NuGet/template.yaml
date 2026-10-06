@@ -1,0 +1,15 @@
+id: "csharp_AspNet_NuGet"
+stableKey: "csharp_ASP_NET_Core_Dotnet_NuGet"
+name: "ASP.NET Core API"
+language: "C_SHARP"
+framework: "ASP_NET_CORE"
+buildTool: "DOTNET_NUGET"
+version: "1.0.0"
+description: "ASP.NET Core minimal API using the dotnet SDK and NuGet"
+variables:
+  - name: SERVICE_NAME
+    required: true
+  - name: PACKAGE_NAME
+    default: "DevForge.Service"
+  - name: CLASS_NAME
+    default: "Application"

@@ -1,0 +1,11 @@
+id: "python_Django_Poetry"
+stableKey: "python_Django_Poetry"
+name: "Django Poetry"
+language: "PYTHON"
+framework: "DJANGO"
+buildTool: "POETRY"
+version: "1.0.0"
+description: "Django service with Poetry dependency management"
+variables:
+  - name: SERVICE_NAME
+    required: true

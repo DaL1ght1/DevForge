@@ -1,7 +1,7 @@
-package com.example.devforge.generator;
+package com.example.devforge.client;
 
 import com.example.devforge.dto.AppServiceCreationDto;
-import com.example.devforge.generator.model.TemplateContext;
+import com.example.devforge.client.model.TemplateContext;
 import org.springframework.stereotype.Component;
 
 import java.util.Arrays;

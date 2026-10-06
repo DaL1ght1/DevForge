@@ -26,9 +26,10 @@ import { Dialog } from "@/components/ui/Dialog";
 
 function formatStatusBadge(status: string) {
   switch (status) {
+    case "PUSHED":
+      return <Badge variant="success">REPOSITORY PUSHED</Badge>;
     case "DEPLOYED":
-    case "READY":
-      return <Badge variant="success">READY</Badge>;
+      return <Badge variant="success">DEPLOYED</Badge>;
     case "PENDING":
     case "CREATING":
       return <Badge variant="warning">PROVISIONING</Badge>;
@@ -190,6 +191,14 @@ export default function ServiceDetailPage() {
               <Button
                 variant="outline"
                 size="sm"
+                disabled
+                title="Deployment support is coming soon"
+              >
+                <ExternalLink className="mr-1.5 h-3.5 w-3.5" /> Deploy
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={loadData}
                 title="Refresh service status"
               >
@@ -225,7 +234,7 @@ export default function ServiceDetailPage() {
                     </span>
                     <div className="flex items-center gap-1.5 font-medium text-zinc-200">
                       <Code2 className="h-3.5 w-3.5 text-zinc-400" />
-                      {service.templateVersion?.version ? `v${service.templateVersion.version}` : "Default Runtime"}
+                      {service.templateVersion?.sourcePath || "Template unavailable"}
                     </div>
                   </div>
 
@@ -235,8 +244,13 @@ export default function ServiceDetailPage() {
                     </span>
                     <div className="flex items-center gap-1.5 font-medium text-zinc-200">
                       <User className="h-3.5 w-3.5 text-zinc-400" />
-                      {service.owner?.username || "System Owner"}
+                      {service.owner?.username || "Unavailable"}
                     </div>
+                  </div>
+                  <div className="mt-4 rounded-lg border border-sky-900/50 bg-sky-950/20 p-3 text-xs">
+                    <div className="font-mono text-[10px] uppercase tracking-wider text-sky-300">Template manifest metadata</div>
+                    <pre className="mt-2 overflow-x-auto whitespace-pre-wrap text-[11px] leading-relaxed text-zinc-300">{`version: ${service.templateVersion?.version || "unknown"}\nsourcePath: ${service.templateVersion?.sourcePath || "unknown"}\nactive: ${service.templateVersion?.active ?? false}`}</pre>
+                    <p className="mt-2 text-[11px] text-zinc-500">Metadata is read from the backend template version. The full YAML is not exposed by the current API.</p>
                   </div>
 
                   <div className="p-3.5 rounded-lg border border-zinc-800 bg-zinc-950/60">
@@ -280,13 +294,8 @@ export default function ServiceDetailPage() {
               </CardHeader>
               <CardContent className="p-5 space-y-3 text-xs">
                 <div className="p-3 rounded-lg border border-zinc-800 bg-zinc-950/60 flex items-center justify-between">
-                  <span className="text-zinc-400">Authentication</span>
-                  <span className="font-mono text-zinc-200">JWT Token Auth</span>
-                </div>
-
-                <div className="p-3 rounded-lg border border-zinc-800 bg-zinc-950/60 flex items-center justify-between">
-                  <span className="text-zinc-400">Target Namespace</span>
-                  <span className="font-mono text-zinc-200">cluster-default</span>
+                  <span className="text-zinc-400">Repository</span>
+                  <span className="font-mono text-zinc-200">{service.repositoryUrl ? "Connected" : "Pending"}</span>
                 </div>
 
                 <div className="p-3 rounded-lg border border-zinc-800 bg-zinc-950/60 flex items-center justify-between">

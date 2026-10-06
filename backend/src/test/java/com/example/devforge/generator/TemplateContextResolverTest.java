@@ -1,7 +1,8 @@
 package com.example.devforge.generator;
 
+import com.example.devforge.client.TemplateContextResolver;
 import com.example.devforge.dto.AppServiceCreationDto;
-import com.example.devforge.generator.model.TemplateContext;
+import com.example.devforge.client.model.TemplateContext;
 import org.junit.jupiter.api.Test;
 
 import java.util.UUID;

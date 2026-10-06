@@ -83,6 +83,10 @@ func (w *ProvisionWorker) Start(ctx context.Context) {
 
 			log.Printf("[Kafka Worker] Processing service [%s] (ID: %s)", req.ServiceName, req.ServiceID)
 			resp := w.executeProvision(ctx, req)
+			if resp.Status == "FAILED" {
+				log.Printf("[Kafka Worker] Provisioning failed for service [%s] (ID: %s): %s",
+					resp.ServiceName, resp.ServiceID, resp.ErrorMessage)
+			}
 			w.publishResponse(ctx, resp)
 		}
 	}

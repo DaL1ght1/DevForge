@@ -1,0 +1,11 @@
+id: "php_Laravel_Composer"
+stableKey: "php_Laravel_Composer"
+name: "PHP Laravel API"
+language: "PHP"
+framework: "LARAVEL"
+buildTool: "COMPOSER"
+version: "1.0.0"
+description: "Laravel application managed with Composer"
+variables:
+  - name: SERVICE_NAME
+    required: true

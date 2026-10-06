@@ -392,6 +392,10 @@ export default function NewServicePage() {
                                 key={lang}
                                 type="button"
                                 onClick={() => handleSelectLanguage(lang)}
+                                onDoubleClick={async () => {
+                                  await handleSelectLanguage(lang);
+                                  setCurrentStep(2);
+                                }}
                                 className={cn(
                                     "flex flex-col text-left p-5 rounded-xl border transition-all relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500",
                                     isSelected
@@ -470,6 +474,10 @@ export default function NewServicePage() {
                                 key={fw}
                                 type="button"
                                 onClick={() => handleSelectFramework(fw)}
+                                onDoubleClick={async () => {
+                                  await handleSelectFramework(fw);
+                                  setCurrentStep(3);
+                                }}
                                 className={cn(
                                     "flex flex-col text-left p-5 rounded-xl border transition-all relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500",
                                     isSelected
@@ -537,6 +545,10 @@ export default function NewServicePage() {
                                 key={tool}
                                 type="button"
                                 onClick={() => handleSelectBuildTool(tool)}
+                                onDoubleClick={async () => {
+                                  await handleSelectBuildTool(tool);
+                                  setCurrentStep(4);
+                                }}
                                 className={cn(
                                     "flex flex-col text-left p-5 rounded-xl border transition-all relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500",
                                     isSelected
@@ -658,7 +670,7 @@ export default function NewServicePage() {
                           Template
                         </span>
                             <span className="font-mono text-sky-400 truncate block">
-                          {matchedTemplate?.name || "Standard Template"}
+                          {matchedTemplate?.name || "Template unavailable"}
                         </span>
                           </div>
 
@@ -707,6 +719,18 @@ export default function NewServicePage() {
                               <p className="text-zinc-300">{description}</p>
                             </div>
                         )}
+                        <div className="rounded-lg border border-sky-900/50 bg-sky-950/20 p-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-[10px] font-mono uppercase tracking-wider text-sky-300">
+                              Backend template manifest
+                            </span>
+                            <Badge variant="outline" size="sm">Live catalog</Badge>
+                          </div>
+                          <pre className="mt-3 overflow-x-auto whitespace-pre-wrap rounded-md border border-zinc-800 bg-zinc-950/70 p-3 text-[11px] leading-relaxed text-zinc-300">{`name: ${matchedTemplate?.name || "unavailable"}\nlanguage: ${matchedTemplate?.language || "unavailable"}\nframework: ${matchedTemplate?.framework || "unavailable"}\nbuildTool: ${matchedTemplate?.buildTool || "unavailable"}\n                          databaseType: ${databaseType || matchedTemplate?.databaseType || "unavailable"}`}</pre>
+                          <p className="mt-2 text-[11px] text-zinc-500">
+                            This preview contains the manifest fields exposed by the backend catalog. No client-side template data is used.
+                          </p>
+                        </div>
                       </CardContent>
                     </Card>
                   </div>

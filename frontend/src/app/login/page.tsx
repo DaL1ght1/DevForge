@@ -33,12 +33,6 @@ export default function LoginPage() {
     }
   };
 
-  const handleFillDemo = () => {
-    setUsername("devforge_admin");
-    setPassword("adminPassword123!");
-    setError(null);
-  };
-
   return (
     <div className="min-h-screen bg-zinc-950 flex flex-col justify-center px-4 py-12 sm:px-6 lg:px-8 text-zinc-100">
       <div className="mx-auto w-full max-w-4xl grid gap-8 lg:grid-cols-[1.1fr_420px] items-center">
@@ -115,7 +109,7 @@ export default function LoginPage() {
                 id="username"
                 name="username"
                 autoComplete="username"
-                placeholder="devforge_admin"
+                placeholder="Enter your username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 leftIcon={<User className="h-4 w-4" />}
@@ -160,23 +154,6 @@ export default function LoginPage() {
               >
                 Sign In to Platform
               </Button>
-
-              <div className="rounded-md border border-zinc-800 bg-zinc-950/60 p-3 text-xs text-zinc-400 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-[11px] text-zinc-300">DEMO CREDENTIALS</span>
-                  <button
-                    type="button"
-                    onClick={handleFillDemo}
-                    className="text-[11px] text-sky-400 hover:text-sky-300 font-medium hover:underline focus:outline-none"
-                  >
-                    Auto-fill
-                  </button>
-                </div>
-                <div className="font-mono text-[11px] text-zinc-400 space-y-0.5">
-                  <div>User: <span className="text-zinc-200">devforge_admin</span></div>
-                  <div>Pass: <span className="text-zinc-200">adminPassword123!</span></div>
-                </div>
-              </div>
 
               <div className="text-center text-xs text-zinc-500 pt-2 border-t border-zinc-800/80">
                 New engineer?{" "}

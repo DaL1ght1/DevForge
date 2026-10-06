@@ -1,0 +1,11 @@
+id: "kotlin_Ktor_Gradle"
+stableKey: "kotlin_Ktor_Gradle_Kotlin_DSL"
+name: "Kotlin Ktor Service"
+language: "KOTLIN"
+framework: "KTOR"
+buildTool: "GRADLE_KOTLIN_DSL"
+version: "1.0.0"
+description: "Ktor HTTP service using Kotlin and Gradle Kotlin DSL"
+variables:
+  - name: SERVICE_NAME
+    required: true

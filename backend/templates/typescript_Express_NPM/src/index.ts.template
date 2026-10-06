@@ -1,0 +1,1 @@
+import express from "express"; const app=express(); app.get("/api/v1/ping",(_,res)=>res.json({service:"{{SERVICE_NAME}}",status:"UP"})); app.listen(8080);

@@ -5,9 +5,14 @@ import {
   TemplateFilter,
   TemplateFramework,
   TemplateLanguage,
+  TemplateSynchronizationResult,
 } from "@/types/api";
 
 export const templatesApi = {
+  sync(): Promise<TemplateSynchronizationResult> {
+    return api.post<TemplateSynchronizationResult>("/admin/templates/sync");
+  },
+
   list(page = 0, size = 50): Promise<Page<AppTemplateResponse>> {
     return api.get<Page<AppTemplateResponse>>(`/templates?page=${page}&size=${size}`);
   },

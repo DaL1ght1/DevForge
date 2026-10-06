@@ -5,7 +5,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
 @Validated
-@ConfigurationProperties(prefix = "keycloak")
+@ConfigurationProperties(prefix = "devforge.keycloak")
 public record KeycloakProperties(
         @NotBlank String serverUrl,
         @NotBlank String realm,

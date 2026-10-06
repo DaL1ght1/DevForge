@@ -1,0 +1,3 @@
+package {{PACKAGE_NAME}};
+import org.springframework.boot.*; import org.springframework.boot.autoconfigure.*; import org.springframework.web.bind.annotation.*;
+@SpringBootApplication @RestController public class {{CLASS_NAME}}Application { public static void main(String[] a){ SpringApplication.run({{CLASS_NAME}}Application.class,a); } @GetMapping("/api/v1/ping") public String ping(){ return "{{SERVICE_NAME}}:UP"; } }

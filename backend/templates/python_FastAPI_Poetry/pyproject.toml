@@ -1,0 +1,13 @@
+[tool.poetry]
+name = "{{SERVICE_NAME}}"
+version = "0.1.0"
+description = "FastAPI service"
+[tool.poetry.dependencies]
+python = ">=3.12,<4.0"
+fastapi = "^0.115.0"
+uvicorn = {extras=["standard"], version="^0.30.6"}
+[tool.poetry.group.test.dependencies]
+pytest = "^8.3.3"
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

@@ -10,7 +10,7 @@ import React, {
 import { UserResponseDto, LoginRequest, UserCreationDto } from "@/types/api";
 import { authApi } from "@/lib/api/auth";
 import { usersApi } from "@/lib/api/users";
-import { tokenStorage } from "@/lib/api/client";
+import { AUTH_EXPIRED_EVENT, tokenStorage } from "@/lib/api/client";
 import { useRouter, usePathname } from "next/navigation";
 
 interface AuthContextType {
@@ -61,6 +61,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     initAuth().then(r => r).catch(e => console.error("Failed to initialize auth:", e));
   }, [refreshProfile]);
+
+  useEffect(() => {
+    const handleAuthExpired = () => {
+      tokenStorage.clear();
+      setUser(null);
+    };
+
+    window.addEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired);
+    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired);
+  }, []);
 
   useEffect(() => {
     if (isLoading) return;

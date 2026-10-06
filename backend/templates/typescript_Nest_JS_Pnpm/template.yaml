@@ -1,0 +1,11 @@
+id: "ts_Nest_Pnpm"
+stableKey: "typescript_Nest_JS_Pnpm"
+name: "TypeScript NestJS"
+language: "TYPESCRIPT"
+framework: "NEST_JS"
+buildTool: "PNPM"
+version: "1.0.0"
+description: "NestJS modular API using pnpm"
+variables:
+  - name: SERVICE_NAME
+    required: true

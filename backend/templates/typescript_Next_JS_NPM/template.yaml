@@ -1,0 +1,11 @@
+id: "ts_Next_NPM"
+stableKey: "typescript_Next_JS_NPM"
+name: "TypeScript Next.js"
+language: "TYPESCRIPT"
+framework: "NEXT_JS"
+buildTool: "NPM"
+version: "1.0.0"
+description: "Next.js application with TypeScript and npm"
+variables:
+  - name: SERVICE_NAME
+    required: true

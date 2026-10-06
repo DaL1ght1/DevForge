@@ -1,0 +1,11 @@
+id: "rust_Axum_Cargo"
+stableKey: "rust_Axum_Cargo"
+name: "Rust Axum Service"
+language: "RUST"
+framework: "AXUM"
+buildTool: "CARGO"
+version: "1.0.0"
+description: "Axum HTTP service built with Cargo"
+variables:
+  - name: SERVICE_NAME
+    required: true

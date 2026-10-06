@@ -1,0 +1,4 @@
+from fastapi import FastAPI
+app = FastAPI(title="{{SERVICE_NAME}}")
+@app.get("/api/v1/ping")
+def ping(): return {"service":"{{SERVICE_NAME}}","status":"UP"}

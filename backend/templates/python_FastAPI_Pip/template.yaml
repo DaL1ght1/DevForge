@@ -1,0 +1,11 @@
+id: "python_FastAPI_Pip"
+stableKey: "python_FastAPI_Pip"
+name: "Python FastAPI Pip"
+language: "PYTHON"
+framework: "FASTAPI"
+buildTool: "PIP"
+version: "1.0.0"
+description: "FastAPI service managed with pip"
+variables:
+  - name: SERVICE_NAME
+    required: true

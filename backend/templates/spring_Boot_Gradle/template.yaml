@@ -1,0 +1,11 @@
+id: "spring_Boot_Gradle"
+stableKey: "spring_Boot_Gradle"
+name: "Spring Boot Gradle"
+language: "JAVA"
+framework: "SPRING_BOOT"
+buildTool: "GRADLE"
+version: "1.0.0"
+description: "Spring Boot service with Gradle build automation"
+variables:
+  - name: SERVICE_NAME
+    required: true

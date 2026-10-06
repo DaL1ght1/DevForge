@@ -1,0 +1,12 @@
+# Generated files
+.env
+.env.*
+node_modules/
+.venv/
+__pycache__/
+target/
+bin/
+obj/
+build/
+coverage/
+*.log

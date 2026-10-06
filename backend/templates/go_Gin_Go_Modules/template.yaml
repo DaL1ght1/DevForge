@@ -1,0 +1,11 @@
+id: "go_Gin_Go_Modules"
+stableKey: "go_Gin_Go_Modules"
+name: "Go Gin API"
+language: "GO"
+framework: "GIN"
+buildTool: "GO_MODULES"
+version: "1.0.0"
+description: "Gin API with Go modules and a health endpoint"
+variables:
+  - name: SERVICE_NAME
+    required: true

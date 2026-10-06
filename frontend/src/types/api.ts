@@ -1,4 +1,4 @@
-export type ServiceStatus = "CREATING" | "PENDING"| "PUSHED" | "DEPLOYED" | "FAILED" | "READY";
+export type ServiceStatus = "CREATING" | "PENDING" | "PUSHED" | "DEPLOYED" | "FAILED";
 
 export type DeploymentStatus = "DEPLOYING" | "PENDING" | "DEPLOYED" | "FAILED";
 
@@ -68,6 +68,14 @@ export interface AppTemplateResponse {
   databaseType: string;
   createdAt: string;
   templateVersionId?: string;
+  stableKey?: string;
+}
+
+export interface TemplateSynchronizationResult {
+  scanned: number;
+  synchronizedTemplates: number;
+  unchanged: number;
+  failed: number;
 }
 
 export interface AppServiceCreationDto {

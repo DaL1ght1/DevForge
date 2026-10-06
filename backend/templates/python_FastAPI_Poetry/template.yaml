@@ -1,0 +1,11 @@
+id: "fastapi_Poetry"
+stableKey: "python_FastAPI_Poetry"
+name: "FastAPI Poetry"
+language: "PYTHON"
+framework: "FASTAPI"
+buildTool: "POETRY"
+version: "1.0.0"
+description: "FastAPI service managed with Poetry"
+variables:
+  - name: SERVICE_NAME
+    required: true

@@ -3,6 +3,8 @@ package com.example.devforge.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 
 import java.time.Instant;
@@ -16,6 +18,10 @@ import java.util.UUID;
                 @UniqueConstraint(
                         name = "uk_template_version",
                         columnNames = {"template_id", "version"}
+                ),
+                @UniqueConstraint(
+                        name = "uk_template_content_hash",
+                        columnNames = {"template_id", "content_hash"}
                 )
         }
 )
@@ -40,6 +46,13 @@ public class TemplateVersion {
 
     @Column(name = "source_path", nullable = false, length = 500)
     private String sourcePath;
+    @Column(name = "content_hash", nullable = false, length = 64)
+    private String contentHash;
+    @JdbcTypeCode(SqlTypes.LONGVARCHAR)
+    @Column(name = "manifest", nullable = false, columnDefinition = "TEXT")
+    private String manifest;
+    @Column(name = "artifact_reference", nullable = false, length = 500)
+    private String artifactReference;
 
     @Column(name = "active", nullable = false)
     @Builder.Default

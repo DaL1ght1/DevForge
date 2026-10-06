@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Badge } from "@/components/ui/Badge";
+import { templatesApi } from "@/lib/api/templates";
 import {
   Boxes,
   Plus,
@@ -13,6 +14,8 @@ import {
   Menu,
   X,
   Terminal,
+  RefreshCw,
+  UserRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +24,8 @@ export function Navbar() {
   const { user, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isSyncingTemplates, setIsSyncingTemplates] = useState(false);
+  const [templateSyncMessage, setTemplateSyncMessage] = useState<string | null>(null);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -28,6 +33,23 @@ export function Navbar() {
       await logout();
     } finally {
       setIsLoggingOut(false);
+    }
+  };
+
+  const handleTemplateSync = async () => {
+    setIsSyncingTemplates(true);
+    setTemplateSyncMessage(null);
+    try {
+      const result = await templatesApi.sync();
+      setTemplateSyncMessage(
+        `${result.synchronizedTemplates} added, ${result.unchanged} unchanged, ${result.failed} failed`
+      );
+    } catch (error) {
+      setTemplateSyncMessage(
+        error instanceof Error ? error.message : "Template sync failed"
+      );
+    } finally {
+      setIsSyncingTemplates(false);
     }
   };
 
@@ -91,11 +113,32 @@ export function Navbar() {
 
         <div className="hidden md:flex items-center gap-3">
           {user && (
-            <div className="flex items-center gap-2 rounded-md border border-zinc-800 bg-zinc-900/60 px-2.5 py-1 text-xs">
+            <Link href="/profile" className="flex items-center gap-2 rounded-md border border-zinc-800 bg-zinc-900/60 px-2.5 py-1 text-xs hover:border-zinc-700">
+              <UserRound className="h-3.5 w-3.5 text-zinc-500" />
               <span className="text-zinc-400 font-mono">{user.username}</span>
               <Badge variant="outline" size="sm">
                 {user.role || "DEVELOPER"}
               </Badge>
+            </Link>
+          )}
+
+          {user?.role === "ADMIN" && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleTemplateSync}
+                disabled={isSyncingTemplates}
+                className="flex items-center gap-1.5 rounded-md border border-sky-900/70 bg-sky-950/40 px-2.5 py-1 text-xs text-sky-300 hover:border-sky-700 hover:text-sky-100 disabled:cursor-not-allowed disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                aria-label="Synchronize templates"
+              >
+                <RefreshCw className={cn("h-3.5 w-3.5", isSyncingTemplates && "animate-spin")} />
+                <span>{isSyncingTemplates ? "Syncing..." : "Sync templates"}</span>
+              </button>
+              {templateSyncMessage && (
+                <span className="sr-only" role="status" aria-live="polite">
+                  {templateSyncMessage}
+                </span>
+              )}
             </div>
           )}
 
@@ -152,11 +195,23 @@ export function Navbar() {
           {user && (
             <div className="pt-2 border-t border-zinc-800/80 flex items-center justify-between text-xs">
               <div className="flex items-center gap-2">
-                <span className="font-mono text-zinc-300">{user.username}</span>
+                <Link href="/profile" onClick={() => setMobileMenuOpen(false)} className="font-mono text-zinc-300 hover:text-zinc-100">{user.username}</Link>
                 <Badge variant="outline" size="sm">
                   {user.role}
                 </Badge>
               </div>
+              {user.role === "ADMIN" && (
+                <button
+                  type="button"
+                  onClick={handleTemplateSync}
+                  disabled={isSyncingTemplates}
+                  className="flex items-center gap-1 text-sky-300 hover:text-sky-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  aria-label="Synchronize templates"
+                >
+                  <RefreshCw className={cn("h-3.5 w-3.5", isSyncingTemplates && "animate-spin")} />
+                  {isSyncingTemplates ? "Syncing..." : "Sync templates"}
+                </button>
+              )}
               <button
                 onClick={async () => {
                   setMobileMenuOpen(false);
@@ -173,6 +228,11 @@ export function Navbar() {
                 {isLoggingOut ? "Signing out..." : "Sign out"}
               </button>
             </div>
+          )}
+          {templateSyncMessage && (
+            <p className="text-xs text-zinc-400" role="status" aria-live="polite">
+              {templateSyncMessage}
+            </p>
           )}
         </div>
       )}

@@ -10,5 +10,8 @@ import java.util.UUID;
 @Repository
 public interface TemplateVersionRepository extends JpaRepository<TemplateVersion, UUID> {
     Optional<TemplateVersion> findFirstByTemplateIdAndActiveTrue(UUID templateId);
+
     Optional<TemplateVersion> findFirstByTemplateId(UUID templateId);
+
+    Optional<TemplateVersion> findByTemplateIdAndContentHash(UUID templateId, String contentHash);
 }

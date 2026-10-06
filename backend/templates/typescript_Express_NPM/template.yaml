@@ -1,0 +1,11 @@
+id: "ts_Express_NPM"
+stableKey: "typescript_Express_NPM"
+name: "TypeScript Express"
+language: "TYPESCRIPT"
+framework: "EXPRESS"
+buildTool: "NPM"
+version: "1.0.0"
+description: "Express API with TypeScript and npm"
+variables:
+  - name: SERVICE_NAME
+    required: true

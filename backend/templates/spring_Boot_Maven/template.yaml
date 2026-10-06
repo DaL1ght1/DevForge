@@ -1,5 +1,6 @@
 id: "spring_Boot_Maven"
-name: "Spring Boot Maven Microservice"
+name: "spring-maven"
+stableKey: "spring_Boot_Maven"
 language: "JAVA"
 framework: "SPRING_BOOT"
 buildTool: "MAVEN"

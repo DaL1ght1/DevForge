@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { servicesApi } from "@/lib/api/services";
 import { AppServiceResponse } from "@/types/api";
+import { useAuth } from "@/context/AuthContext";
 import { Navbar } from "@/components/layout/Navbar";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Badge } from "@/components/ui/Badge";
@@ -23,9 +24,10 @@ import { Select } from "@/components/ui/Select";
 
 function formatStatus(status: string) {
   switch (status) {
-    case "READY":
+    case "PUSHED":
+      return { label: "REPOSITORY PUSHED", variant: "success" as const };
     case "DEPLOYED":
-      return { label: "READY", variant: "success" as const };
+      return { label: "DEPLOYED", variant: "success" as const };
     case "PENDING":
     case "CREATING":
       return { label: "PROVISIONING", variant: "warning" as const };
@@ -37,6 +39,7 @@ function formatStatus(status: string) {
 }
 
 export default function ServicesPage() {
+  const { user, isLoading: authLoading } = useAuth();
   const [services, setServices] = useState<AppServiceResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -56,6 +59,8 @@ export default function ServicesPage() {
   };
 
   useEffect(() => {
+    if (authLoading || !user) return;
+
     let active = true;
     servicesApi
       .list(0, 50)
@@ -72,7 +77,7 @@ export default function ServicesPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [authLoading, user]);
 
   const filteredServices = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -89,7 +94,7 @@ export default function ServicesPage() {
   const summary = useMemo(() => {
     return {
       total: services.length,
-      ready: services.filter((svc) => svc.status === "DEPLOYED" || svc.status === "READY").length,
+      ready: services.filter((svc) => svc.status === "PUSHED" || svc.status === "DEPLOYED").length,
       provisioning: services.filter(
         (svc) => svc.status === "CREATING" || svc.status === "PENDING"
       ).length,
@@ -209,7 +214,8 @@ export default function ServicesPage() {
                   onChange={(e) => setStatusFilter(e.target.value)}
                   options={[
                     { value: "ALL", label: "All Statuses" },
-                    { value: "DEPLOYED", label: "Ready / Deployed" },
+                    { value: "PUSHED", label: "Repository pushed" },
+                    { value: "DEPLOYED", label: "Deployed" },
                     { value: "CREATING", label: "Provisioning" },
                     { value: "PENDING", label: "Pending" },
                     { value: "FAILED", label: "Failed" },

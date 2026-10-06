@@ -5,56 +5,39 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="0bfa636a-f557-4fa6-8a4b-c23660bd5248" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/config/kafka/KafkaProperties.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../backend/.env.example" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/.env.example" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../backend/compose.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/compose.yaml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/dto/TemplateData.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../backend/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../backend/provisioner/cmd/server/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/provisioner/cmd/server/main.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../backend/provisioner/go.mod" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/provisioner/go.mod" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../backend/provisioner/go.sum" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/provisioner/go.sum" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../backend/provisioner/internal/httpHandler.go" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../backend/provisioner/internal/model/context.go" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/provisioner/internal/model/context.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/client/ProvisionerClient.java" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/client/ProvisionerClient.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/config/keycloak/KeycloakAdminClient.java" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/config/keycloak/KeycloakAdminClient.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/config/keycloak/KeycloakConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/config/keycloak/KeycloakConfig.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/controller/AppTemplateController.java" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/controller/AppTemplateController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/controller/AuthController.java" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/controller/AuthController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/entity/ServiceStatus.java" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/entity/ServiceStatus.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../backend/provisioner/internal/config/config.go" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/provisioner/internal/config/config.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../backend/provisioner/internal/kafka/worker.go" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/provisioner/internal/kafka/worker.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/config/keycloak/KeycloakProperties.java" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/config/keycloak/KeycloakProperties.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/entity/AppTemplate.java" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/entity/AppTemplate.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/entity/BuildTool.java" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/entity/BuildTool.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/entity/TemplateFramework.java" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/entity/TemplateFramework.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/entity/TemplateLanguage.java" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/entity/TemplateLanguage.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/entity/TemplateVersion.java" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/entity/TemplateVersion.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/generator/TemplateContextResolver.java" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/client/TemplateContextResolver.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/generator/model/TemplateContext.java" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/client/model/TemplateContext.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/repository/AppServiceRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/repository/AppServiceRepository.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/repository/AppTemplateRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/repository/AppTemplateRepository.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/repository/TemplateVersionRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/repository/TemplateVersionRepository.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/security/SecurityConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/security/SecurityConfig.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/service/AppTemplateService.java" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/service/AppTemplateService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/service/AuthService.java" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/service/AuthService.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/service/implementation/AppServiceImplementation.java" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/service/implementation/AppServiceImplementation.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/service/implementation/AppTemplateImplementation.java" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/service/implementation/AppTemplateImplementation.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/service/implementation/AuthServiceImplementation.java" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/service/implementation/AuthServiceImplementation.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/service/implementation/UserServiceImplementation.java" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/service/implementation/UserServiceImplementation.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../backend/src/main/resources/application.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/src/main/resources/application.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../backend/src/main/resources/db/migration/V1__First_Tables.sql" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/src/main/resources/db/migration/V1__First_Tables.sql" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../backend/src/main/resources/db/migration/V2__Mock_Data_For_testing.sql" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../backend/src/test/java/com/example/devforge/generator/TemplateContextResolverTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/src/test/java/com/example/devforge/generator/TemplateContextResolverTest.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../backend/templates/spring_Boot_Maven/.github/workflows/ci.yml" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/templates/spring_Boot_Maven/.github/workflows/ci.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../backend/templates/spring_Boot_Maven/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/templates/spring_Boot_Maven/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../backend/templates/spring_Boot_Maven/template.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/templates/spring_Boot_Maven/template.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/eslint.config.mjs" beforeDir="false" afterPath="$PROJECT_DIR$/eslint.config.mjs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/next.config.ts" beforeDir="false" afterPath="$PROJECT_DIR$/next.config.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/globals.css" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/globals.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/layout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/layout.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/app/login/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/login/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/register/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/register/page.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/app/services/[id]/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/services/[id]/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/services/new/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/services/new/page.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/app/services/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/services/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/common/CodeBlock.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/common/CopyButton.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/common/PageHeader.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/ui/Card.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/ui/Card.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/ui/Dialog.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/ui/Dialog.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/ui/Input.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/ui/Input.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/ui/Select.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/ui/Select.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/ui/Tabs.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/ui/Textarea.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/ui/Textarea.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/layout/Navbar.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/layout/Navbar.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/context/AuthContext.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/context/AuthContext.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/api/auth.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/api/auth.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/lib/api/client.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/api/client.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/lib/api/templates.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/api/templates.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/utils.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/utils.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/types/api.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/types/api.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -94,29 +77,29 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
-    "codeWithMe.voiceChat.enabledByDefault": "false",
-    "copilot.chat.legacySessionMetadata.migrated": "true",
-    "git-widget-placeholder": "main",
-    "javascript.preferred.runtime.type.id": "node",
-    "js.debugger.nextJs.config.created.client": "true",
-    "js.debugger.nextJs.config.created.server": "true",
-    "last_opened_file_path": "D:/Work/DevForge/frontend",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.jshint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.jshint": "",
-    "nodejs_package_manager_path": "npm",
-    "npm.Next.js: server-side.executor": "Debug",
-    "settings.editor.selected.configurable": "preferences.editor",
-    "ts.external.directory.path": "D:\\Work\\DevForge\\frontend\\node_modules\\typescript\\lib"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
+    &quot;codeWithMe.voiceChat.enabledByDefault&quot;: &quot;false&quot;,
+    &quot;copilot.chat.legacySessionMetadata.migrated&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;javascript.preferred.runtime.type.id&quot;: &quot;node&quot;,
+    &quot;js.debugger.nextJs.config.created.client&quot;: &quot;true&quot;,
+    &quot;js.debugger.nextJs.config.created.server&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;D:/Work/DevForge/frontend&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.jshint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.jshint&quot;: &quot;&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;npm.Next.js: server-side.executor&quot;: &quot;Debug&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.editor&quot;,
+    &quot;ts.external.directory.path&quot;: &quot;D:\\Work\\DevForge\\frontend\\node_modules\\typescript\\lib&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="D:\Work\DevForge\frontend" />
@@ -159,6 +142,7 @@
       <workItem from="1791077688767" duration="2619000" />
       <workItem from="1791126874924" duration="1322000" />
       <workItem from="1791168470686" duration="2420000" />
+      <workItem from="1791251123626" duration="3449000" />
     </task>
     <servers />
   </component>

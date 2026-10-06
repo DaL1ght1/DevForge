@@ -2,7 +2,14 @@ package com.example.devforge.entity;
 
 public enum TemplateFramework {
     SPRING_BOOT,
+    KTOR,
     GIN,
     FASTAPI,
-    NEXT_JS
+    DJANGO,
+    NEXT_JS,
+    NEST_JS,
+    EXPRESS,
+    AXUM,
+    ASP_NET_CORE,
+    LARAVEL
 }

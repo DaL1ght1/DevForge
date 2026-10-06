@@ -30,6 +30,8 @@ public class AppTemplate {
     private UUID id;
     @Column(name = "name", nullable = false, length = 20, unique = true)
     private String name;
+    @Column(name = "stable_key", nullable = false, length = 100, unique = true)
+    private String stableKey;
     @Enumerated(EnumType.STRING)
     @Column(name = "language", nullable = false, length = 30)
     private TemplateLanguage language;

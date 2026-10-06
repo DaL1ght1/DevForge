@@ -10,8 +10,8 @@ import com.example.devforge.exception.AppServiceNotFoundException;
 import com.example.devforge.exception.AppTemplateVersionNotFoundException;
 import com.example.devforge.exception.UnauthorizedAccessException;
 import com.example.devforge.exception.UserNotFoundException;
-import com.example.devforge.generator.TemplateContextResolver;
-import com.example.devforge.generator.model.TemplateContext;
+import com.example.devforge.client.TemplateContextResolver;
+import com.example.devforge.client.model.TemplateContext;
 import com.example.devforge.mapper.AppServiceMapper;
 import com.example.devforge.repository.AppServiceRepository;
 import com.example.devforge.repository.TemplateVersionRepository;
@@ -62,7 +62,7 @@ public class AppServiceImplementation implements AppServiceService {
         ProvisionerClient.ProvisionRequest provRequest = new ProvisionerClient.ProvisionRequest(
                 saved.getId(),
                 ctx.serviceName(),
-                templateVersion.getTemplate().getName(),
+                templateVersion.getTemplate().getStableKey(),
                 ctx.packageName(),
                 ctx.className(),
                 ctx.description(),

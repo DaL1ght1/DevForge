@@ -8,6 +8,7 @@ const API_BASE_URL =
 
 const ACCESS_TOKEN_KEY = "devforge_access_token";
 const REFRESH_TOKEN_KEY = "devforge_refresh_token";
+export const AUTH_EXPIRED_EVENT = "devforge:auth-expired";
 
 export class ApiClientError extends Error {
   public status: number;
@@ -130,6 +131,12 @@ async function request<T>(
   }
 
   if (!response.ok) {
+    if (response.status === 401 && !options.skipAuth && !endpoint.startsWith("/auth/")) {
+      tokenStorage.clear();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
+      }
+    }
     let errorData: ApiErrorResponse;
     try {
       errorData = await response.json();

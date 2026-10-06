@@ -1,4 +1,4 @@
-package com.example.devforge.generator.model;
+package com.example.devforge.client.model;
 
 import java.util.Map;
 

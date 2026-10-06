@@ -1,0 +1,11 @@
+[tool.poetry]
+name = "{{SERVICE_NAME}}"
+version = "0.1.0"
+[tool.poetry.dependencies]
+python = ">=3.12,<4.0"
+django = "^5.1"
+[tool.poetry.group.test.dependencies]
+pytest = "^8.3.3"
+[build-system]
+requires=["poetry-core"]
+build-backend="poetry.core.masonry.api"
