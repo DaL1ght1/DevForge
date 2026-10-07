@@ -1,16 +1,10 @@
 version: "2"
 
-run:
-  timeout: 5m
-
 linters:
+  default: standard
   enable:
+    - errcheck
     - govet
     - staticcheck
-    - ineffassign
     - unused
-
-issues:
-  exclude-dirs:
-    - templates
-    - workspace
+    - ineffassign
