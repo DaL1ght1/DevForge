@@ -66,7 +66,7 @@ func Load() (*Config, error) {
 	workspaceDir := getEnvOrDefault("WORKSPACE_DIR", "../workspace")
 	port := getEnvOrDefault("PORT", "8081")
 
-	kafkaBootstrap := getEnvOrDefault("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+	kafkaBootstrap := getEnvOrDefault("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
 	brokers := strings.Split(kafkaBootstrap, ",")
 
 	reqTopic := getEnvOrDefault("REQUEST_TOPIC", "provisioning")

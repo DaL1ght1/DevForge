@@ -1,5 +1,6 @@
 package com.example.devforge.security;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -25,7 +26,7 @@ import java.util.Map;
 public class SecurityConfig {
 
     @Bean
-    SecurityFilterChain filterChain(HttpSecurity http)  {
+    SecurityFilterChain filterChain(HttpSecurity http) {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(Customizer.withDefaults())
@@ -36,9 +37,9 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/health/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .anyRequest().authenticated())
-               .oauth2ResourceServer(oauth2 -> oauth2
-                      .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))
-                ;
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))
+        ;
         return http.build();
     }
 
@@ -48,7 +49,8 @@ public class SecurityConfig {
         converter.setJwtGrantedAuthoritiesConverter(jwt -> {
             Map<String, Object> realmAccess = jwt.getClaim("realm_access");
             if (realmAccess == null || !(realmAccess.get("roles") instanceof Collection<?> roles)) {
-                return List.of(); }
+                return List.of();
+            }
             return roles.stream()
                     .<GrantedAuthority>map(r -> new SimpleGrantedAuthority("ROLE_" + r))
                     .toList();
@@ -56,11 +58,14 @@ public class SecurityConfig {
         return converter;
     }
 
+    @Value("${devforge.cors.allowed-origins}")
+    String allowedOrigins;
 
     @Bean
     CorsConfigurationSource corsConfigurationSource() {
         var cfg = new CorsConfiguration();
-        cfg.setAllowedOrigins(List.of("http://localhost:3000"));
+
+        cfg.setAllowedOrigins(List.of(allowedOrigins));
         cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         cfg.setAllowedHeaders(List.of("Authorization", "Content-Type"));
         var source = new UrlBasedCorsConfigurationSource();
