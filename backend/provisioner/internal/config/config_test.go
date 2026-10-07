@@ -7,20 +7,23 @@ import (
 )
 
 func TestLoadRequiresGitHubCredentials(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "")
+	t.Setenv("GITHUB_APP_ID", "")
+	t.Setenv("GITHUB_APP_INSTALLATION_ID", "")
+	t.Setenv("GITHUB_APP_PRIVATE_KEY", "")
+	t.Setenv("GITHUB_APP_PRIVATE_KEY_PATH", "")
 	t.Setenv("GITHUB_OWNER", "")
 
 	_, err := Load()
 	if err == nil {
 		t.Fatal("expected missing GitHub credentials to fail")
 	}
-	if err.Error() != "GITHUB_TOKEN environment variable is required" {
+	if err.Error() != "GITHUB_APP_ID environment variable is required" {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
 func TestLoadAppliesDefaultsAndNormalizesTopics(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "token")
+	setGitHubAppEnvironment(t)
 	t.Setenv("GITHUB_OWNER", "owner")
 	t.Setenv("TEMPLATES_DIR", "")
 	t.Setenv("WORKSPACE_DIR", "")
@@ -29,7 +32,6 @@ func TestLoadAppliesDefaultsAndNormalizesTopics(t *testing.T) {
 	t.Setenv("REQUEST_TOPIC", "requests")
 	t.Setenv("RESPONSE_TOPIC", "responses")
 	t.Setenv("GROUP_ID", "test-group")
-	t.Setenv("GITHUB_IS_ORG", "true")
 
 	cfg, err := Load()
 	if err != nil {
@@ -45,13 +47,13 @@ func TestLoadAppliesDefaultsAndNormalizesTopics(t *testing.T) {
 	if len(cfg.KafkaBrokers) != 2 || cfg.KafkaBrokers[1] != "broker-2:9092" {
 		t.Fatalf("unexpected brokers: %+v", cfg.KafkaBrokers)
 	}
-	if !cfg.GithubIsOrg || cfg.KafkaGroupID != "test-group" {
-		t.Fatalf("unexpected flags/group: %+v", cfg)
+	if cfg.GithubAppID != 12345 || cfg.GithubInstallationID != 67890 || cfg.KafkaGroupID != "test-group" {
+		t.Fatalf("unexpected GitHub App credentials/group: %+v", cfg)
 	}
 }
 
 func TestLoadDoesNotDuplicateTopicSuffixes(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "token")
+	setGitHubAppEnvironment(t)
 	t.Setenv("GITHUB_OWNER", "owner")
 	t.Setenv("REQUEST_TOPIC", "requests-requestTopic")
 	t.Setenv("RESPONSE_TOPIC", "responses-responseTopic")
@@ -71,7 +73,11 @@ func TestLoadReadsEnvironmentFromNearestWorkingDirectory(t *testing.T) {
 	if err := os.Mkdir(child, 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, ".env"), []byte("GITHUB_TOKEN=file-token\nGITHUB_OWNER=file-owner\nPORT=9090\n"), 0600); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(root, ".env"),
+		[]byte("GITHUB_APP_ID=12345\nGITHUB_APP_INSTALLATION_ID=67890\nGITHUB_APP_PRIVATE_KEY=test-private-key\nGITHUB_OWNER=file-owner\nPORT=9090\n"),
+		0600,
+	); err != nil {
 		t.Fatal(err)
 	}
 	t.Chdir(child)
@@ -89,7 +95,10 @@ func TestLoadReadsEnvironmentFromNearestWorkingDirectory(t *testing.T) {
 			}
 		})
 	}
-	restoreEnv("GITHUB_TOKEN")
+	restoreEnv("GITHUB_APP_ID")
+	restoreEnv("GITHUB_APP_INSTALLATION_ID")
+	restoreEnv("GITHUB_APP_PRIVATE_KEY")
+	restoreEnv("GITHUB_APP_PRIVATE_KEY_PATH")
 	restoreEnv("GITHUB_OWNER")
 	restoreEnv("PORT")
 
@@ -97,7 +106,15 @@ func TestLoadReadsEnvironmentFromNearestWorkingDirectory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load failed: %v", err)
 	}
-	if cfg.GithubToken != "file-token" || cfg.GithubOwner != "file-owner" || cfg.Port != "9090" {
+	if cfg.GithubAppID != 12345 || cfg.GithubInstallationID != 67890 || cfg.GithubOwner != "file-owner" || cfg.Port != "9090" {
 		t.Fatalf("dotenv values were not loaded: %+v", cfg)
 	}
+}
+
+func setGitHubAppEnvironment(t *testing.T) {
+	t.Helper()
+	t.Setenv("GITHUB_APP_ID", "12345")
+	t.Setenv("GITHUB_APP_INSTALLATION_ID", "67890")
+	t.Setenv("GITHUB_APP_PRIVATE_KEY", "test-private-key")
+	t.Setenv("GITHUB_APP_PRIVATE_KEY_PATH", "")
 }

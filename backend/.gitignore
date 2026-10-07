@@ -35,3 +35,4 @@ build/
 ### security ###
 .env
 .env.test
+devf0rger.2026-10-07.private-key.pem

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"devforge/provisioner/internal/generator"
 	"devforge/provisioner/internal/git"
@@ -34,6 +35,8 @@ func NewProvisionWorker(
 	gitPusher *git.Pusher,
 	workspace string,
 ) *ProvisionWorker {
+	ensureTopics(brokers, reqTopic, respTopic)
+
 	reader := kafka.NewReader(kafka.ReaderConfig{
 		Brokers:  brokers,
 		GroupID:  groupID,
@@ -58,6 +61,43 @@ func NewProvisionWorker(
 	}
 }
 
+func ensureTopics(brokers []string, topics ...string) {
+	if len(brokers) == 0 || len(topics) == 0 {
+		return
+	}
+
+	checkCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	dialer := &kafka.Dialer{Timeout: 10 * time.Second}
+	conn, err := dialer.DialLeader(checkCtx, "tcp", brokers[0], topics[0], 0)
+	if err == nil {
+		_ = conn.Close()
+		return
+	}
+
+	conn, err = dialer.DialContext(checkCtx, "tcp", brokers[0])
+	if err != nil {
+		log.Printf("[Kafka Worker] Topic check failed: %v", err)
+		return
+	}
+	defer func() {
+		_ = conn.Close()
+	}()
+
+	configs := make([]kafka.TopicConfig, 0, len(topics))
+	for _, topic := range topics {
+		configs = append(configs, kafka.TopicConfig{
+			Topic:             topic,
+			NumPartitions:     1,
+			ReplicationFactor: 1,
+		})
+	}
+	if err := conn.CreateTopics(configs...); err != nil {
+		log.Printf("[Kafka Worker] Topic creation/check failed: %v", err)
+	}
+}
+
 func (w *ProvisionWorker) Start(ctx context.Context) {
 	log.Printf("[Kafka Worker] Subscribed to topic: %s", w.reader.Config().Topic)
 	for {
@@ -72,6 +112,11 @@ func (w *ProvisionWorker) Start(ctx context.Context) {
 					return
 				}
 				log.Printf("[Kafka Worker] Read error: %v", err)
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(time.Second):
+				}
 				continue
 			}
 
@@ -132,7 +177,7 @@ func (w *ProvisionWorker) executeProvision(ctx context.Context, req model.Provis
 		return resp
 	}
 
-	if err := w.gitPusher.PushDirectory(outPath, cloneURL); err != nil {
+	if err := w.gitPusher.PushDirectory(ctx, outPath, cloneURL); err != nil {
 		resp.ErrorMessage = fmt.Sprintf("git push failed: %v", err)
 		return resp
 	}

@@ -75,6 +75,12 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
     volumes:
       - kafka-data:/var/lib/kafka/data
     networks:
@@ -93,9 +99,12 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
       DEVFORGE_TEMPLATES_ROOT: /app/templates
     depends_on:
-      - postgres
-      - keycloak
-      - kafka
+      postgres:
+        condition: service_started
+      keycloak:
+        condition: service_started
+      kafka:
+        condition: service_healthy
     extra_hosts:
       - 'localhost:host-gateway'
     ports:
@@ -114,14 +123,22 @@ services:
       TEMPLATES_DIR: /app/templates
       WORKSPACE_DIR: /app/workspace
       PORT: 8081
+      GITHUB_APP_PRIVATE_KEY_PATH: /run/secrets/github_app_key
+    secrets:
+      - github_app_key
     depends_on:
-      - kafka
+      kafka:
+        condition: service_healthy
     ports:
       - '8081:8081'
     volumes:
       - provisioner-workspace:/app/workspace
     networks:
       - devForge
+
+secrets:
+  github_app_key:
+    file: ./devf0rger.2026-10-07.private-key.pem
 
 networks:
   devForge:

@@ -9,6 +9,8 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/bradleyfalzon/ghinstallation/v2"
+
 	"devforge/provisioner/internal/config"
 	"devforge/provisioner/internal/generator"
 	"devforge/provisioner/internal/git"
@@ -23,14 +25,28 @@ func main() {
 	}
 	log.Printf("[Provisioner] Using templates: %s", cfg.TemplatesDir)
 	log.Printf("[Provisioner] Using workspace: %s", cfg.WorkspaceDir)
+
 	gen := generator.NewProjectGenerator(cfg.TemplatesDir)
-	ghClient, err := github.NewClient(cfg.GithubToken, cfg.GithubOwner, cfg.GithubIsOrg)
+	itr, err := ghinstallation.New(
+		http.DefaultTransport,
+		cfg.GithubAppID,
+		cfg.GithubInstallationID,
+		cfg.GithubAppPrivateKey,
+	)
+	if err != nil {
+		log.Fatalf("GitHub App auth init failed: %v", err)
+	}
+
+	ghClient, err := github.NewClient(itr, cfg.GithubOwner)
 	if err != nil {
 		log.Fatalf("GitHub client init failed: %v", err)
 	}
-	gitPusher := git.NewPusher(cfg.GithubToken)
+
+	gitPusher := git.NewPusher(itr)
+
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
+
 	worker := provKafka.NewProvisionWorker(
 		cfg.KafkaBrokers,
 		cfg.RequestTopic,
@@ -42,6 +58,7 @@ func main() {
 		cfg.WorkspaceDir,
 	)
 	go worker.Start(ctx)
+
 	server := &http.Server{
 		Addr: ":" + cfg.Port,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -1,6 +1,7 @@
 package git
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -11,15 +12,19 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 )
 
+type TokenSource interface {
+	Token(ctx context.Context) (string, error)
+}
+
 type Pusher struct {
-	token string
+	tokens TokenSource
 }
 
-func NewPusher(token string) *Pusher {
-	return &Pusher{token: token}
+func NewPusher(tokens TokenSource) *Pusher {
+	return &Pusher{tokens: tokens}
 }
 
-func (p *Pusher) PushDirectory(projectDir, remoteURL string) error {
+func (p *Pusher) PushDirectory(ctx context.Context, projectDir, remoteURL string) error {
 	repo, err := git.PlainInit(projectDir, false)
 	if err != nil {
 		return fmt.Errorf("git init failed: %w", err)
@@ -53,13 +58,17 @@ func (p *Pusher) PushDirectory(projectDir, remoteURL string) error {
 	if err != nil {
 		return fmt.Errorf("failed to set remote origin: %w", err)
 	}
-
-	auth := &http.BasicAuth{
-		Username: "oauth2",
-		Password: p.token,
+	token, err := p.tokens.Token(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get github installation token: %w", err)
 	}
 
-	err = repo.Push(&git.PushOptions{
+	auth := &http.BasicAuth{
+		Username: "x-access-token",
+		Password: token,
+	}
+
+	err = repo.PushContext(ctx, &git.PushOptions{
 		RemoteName: "origin",
 		RefSpecs:   []config.RefSpec{"refs/heads/main:refs/heads/main"},
 		Auth:       auth,
