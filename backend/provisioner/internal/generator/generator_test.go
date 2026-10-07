@@ -1,12 +1,11 @@
-package generator_test
+package generator
 
 import (
+	"devforge/provisioner/internal/model"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"devforge/provisioner/internal/model"
 )
 
 func TestProjectGenerator(t *testing.T) {
