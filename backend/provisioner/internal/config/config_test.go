@@ -1,7 +1,6 @@
-package test
+package config
 
 import (
-	"devforge/provisioner/internal/config"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,7 +10,7 @@ func TestLoadRequiresGitHubCredentials(t *testing.T) {
 	t.Setenv("GITHUB_TOKEN", "")
 	t.Setenv("GITHUB_OWNER", "")
 
-	_, err := config.Load()
+	_, err := Load()
 	if err == nil {
 		t.Fatal("expected missing GitHub credentials to fail")
 	}
@@ -32,7 +31,7 @@ func TestLoadAppliesDefaultsAndNormalizesTopics(t *testing.T) {
 	t.Setenv("GROUP_ID", "test-group")
 	t.Setenv("GITHUB_IS_ORG", "true")
 
-	cfg, err := config.Load()
+	cfg, err := Load()
 	if err != nil {
 		t.Fatalf("Load failed: %v", err)
 	}
@@ -57,7 +56,7 @@ func TestLoadDoesNotDuplicateTopicSuffixes(t *testing.T) {
 	t.Setenv("REQUEST_TOPIC", "requests-requestTopic")
 	t.Setenv("RESPONSE_TOPIC", "responses-responseTopic")
 
-	cfg, err := config.Load()
+	cfg, err := Load()
 	if err != nil {
 		t.Fatalf("Load failed: %v", err)
 	}
@@ -94,7 +93,7 @@ func TestLoadReadsEnvironmentFromNearestWorkingDirectory(t *testing.T) {
 	restoreEnv("GITHUB_OWNER")
 	restoreEnv("PORT")
 
-	cfg, err := config.Load()
+	cfg, err := Load()
 	if err != nil {
 		t.Fatalf("Load failed: %v", err)
 	}

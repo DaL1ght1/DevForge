@@ -9,7 +9,7 @@ pre-commit:
     java-format:
       root: backend
       glob: "backend/src/**/*.java"
-      run: ./mvnw spotless:apply -DspotlessFiles={staged_files}
+      run: ./mvnw spotless:apply "-DspotlessFiles={staged_files}"
       stage_fixed: true
     frontend-format:
       root: frontend

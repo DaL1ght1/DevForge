@@ -1,4 +1,4 @@
-package test_test
+package generator_test
 
 import (
 	"os"
@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"devforge/provisioner/internal/generator"
 	"devforge/provisioner/internal/model"
 )
 
@@ -53,7 +52,7 @@ func TestProjectGenerator(t *testing.T) {
 		}
 	}(tempOutputDir)
 
-	gen := generator.NewProjectGenerator(tempTemplateDir)
+	gen := NewProjectGenerator(tempTemplateDir)
 
 	req := model.GenerationRequest{
 		ServiceName:  "order-service",
@@ -88,7 +87,7 @@ func TestProjectGenerator(t *testing.T) {
 }
 
 func TestProjectGeneratorReturnsErrorForMissingTemplate(t *testing.T) {
-	gen := generator.NewProjectGenerator(t.TempDir())
+	gen := NewProjectGenerator(t.TempDir())
 
 	_, err := gen.Generate(model.GenerationRequest{
 		ServiceName:  "missing-service",
@@ -114,7 +113,7 @@ func TestProjectGeneratorReplacesAllVariablesAndPathTokens(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	projectDir, err := generator.NewProjectGenerator(templateRoot).Generate(model.GenerationRequest{
+	projectDir, err := NewProjectGenerator(templateRoot).Generate(model.GenerationRequest{
 		ServiceName:  "catalog-service",
 		TemplateName: "go-gin",
 		PackageName:  "com.devforge.catalog",
