@@ -25,7 +25,10 @@ export function StepIndicator({
   className,
 }: StepIndicatorProps) {
   return (
-    <nav aria-label="Project initialization steps" className={cn("w-full", className)}>
+    <nav
+      aria-label="Project initialization steps"
+      className={cn("w-full", className)}
+    >
       <ol className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
         {steps.map((step) => {
           const isCompleted = step.id < currentStep;
@@ -47,7 +50,7 @@ export function StepIndicator({
                   isCompleted &&
                     "border-zinc-800 bg-zinc-900/60 text-zinc-300 hover:border-zinc-700 cursor-pointer",
                   isUpcoming &&
-                    "border-zinc-800/60 bg-zinc-950/40 text-zinc-500 cursor-not-allowed"
+                    "border-zinc-800/60 bg-zinc-950/40 text-zinc-500 cursor-not-allowed",
                 )}
               >
                 <div className="flex items-center gap-2 mb-1.5">
@@ -55,11 +58,17 @@ export function StepIndicator({
                     className={cn(
                       "flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-mono font-medium",
                       isCompleted && "bg-sky-500 text-zinc-950 font-bold",
-                      isCurrent && "bg-sky-500/20 text-sky-300 border border-sky-400/60 font-bold",
-                      isUpcoming && "bg-zinc-800 text-zinc-500 border border-zinc-700/50"
+                      isCurrent &&
+                        "bg-sky-500/20 text-sky-300 border border-sky-400/60 font-bold",
+                      isUpcoming &&
+                        "bg-zinc-800 text-zinc-500 border border-zinc-700/50",
                     )}
                   >
-                    {isCompleted ? <Check className="h-3 w-3 stroke-3" /> : step.id}
+                    {isCompleted ? (
+                      <Check className="h-3 w-3 stroke-3" />
+                    ) : (
+                      step.id
+                    )}
                   </span>
                   <span className="font-medium text-xs truncate">
                     Level {step.id}

@@ -65,4 +65,35 @@ npm run lint
 npm run build
 ```
 
+## Development setup
+
+Install Lefthook, then install the repository hooks from the repository root:
+
+```powershell
+go install github.com/evilmartians/lefthook@latest
+lefthook install
+```
+
+Run formatters manually by stack:
+
+```powershell
+Set-Location backend\provisioner
+gofmt -w .
+goimports -w .
+golangci-lint run
+
+Set-Location ..\..
+Set-Location backend
+.\mvnw spotless:apply
+
+Set-Location ..\frontend
+npm run format
+```
+
+The hooks format staged Go, Java, and frontend files before commits. Before pushes,
+they run Go tests, fast Spring unit tests, and frontend lint, typecheck, and Vitest.
+GitHub Actions runs formatting checks, linting, and tests for only the changed stack
+on pushes and pull requests targeting `main`. Full Spring tests use Testcontainers
+and therefore require Docker in CI.
+
 See [CONTRIBUTE.md](CONTRIBUTE.md) for template requirements and contribution guidelines.

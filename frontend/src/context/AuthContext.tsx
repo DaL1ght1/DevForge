@@ -59,7 +59,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
       }
     }
-    initAuth().then(r => r).catch(e => console.error("Failed to initialize auth:", e));
+    initAuth()
+      .then((r) => r)
+      .catch((e) => console.error("Failed to initialize auth:", e));
   }, [refreshProfile]);
 
   useEffect(() => {
@@ -69,7 +71,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     window.addEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired);
-    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired);
+    return () =>
+      window.removeEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired);
   }, []);
 
   useEffect(() => {

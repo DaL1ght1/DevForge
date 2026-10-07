@@ -4,21 +4,20 @@ import com.example.devforge.entity.AppService;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
-import org.hibernate.validator.constraints.Length;
-
 import java.io.Serializable;
 import java.util.UUID;
+import org.hibernate.validator.constraints.Length;
 
-/**
- * DTO for {@link AppService}
- */
+/** DTO for {@link AppService} */
 public record AppServiceCreationDto(
-        @Pattern(
-                regexp = "^[a-z0-9-]{3,20}$",
-                message = "Service name must be 3-20 characters long and contain only lowercase letters, numbers, and hyphens"
-        )
-        @NotBlank @Length(max = 20) String name,
-        String description,
-        @NotNull UUID templateVersionId,
-        @NotBlank @Length(max = 20) String databaseType) implements Serializable {
-}
+    @Pattern(
+            regexp = "^[a-z0-9-]{3,20}$",
+            message =
+                "Service name must be 3-20 characters long and contain only lowercase letters, numbers, and hyphens")
+        @NotBlank
+        @Length(max = 20)
+        String name,
+    String description,
+    @NotNull UUID templateVersionId,
+    @NotBlank @Length(max = 20) String databaseType)
+    implements Serializable {}

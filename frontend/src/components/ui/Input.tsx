@@ -1,8 +1,7 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 
-export interface InputProps
-  extends React.InputHTMLAttributes<HTMLInputElement> {
+export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
   hint?: string;
@@ -11,7 +10,10 @@ export interface InputProps
 }
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, label, error, hint, leftIcon, rightIcon, id, ...props }, ref) => {
+  (
+    { className, label, error, hint, leftIcon, rightIcon, id, ...props },
+    ref,
+  ) => {
     const inputId = id || props.name;
 
     return (
@@ -43,7 +45,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
                 : "border-zinc-800 hover:border-zinc-700",
               leftIcon && "pl-9",
               rightIcon && "pr-9",
-              className
+              className,
             )}
             {...props}
           />
@@ -54,12 +56,10 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           )}
         </div>
         {error && <p className="text-xs text-red-400 mt-1">{error}</p>}
-        {hint && !error && (
-          <p className="text-xs text-zinc-500 mt-1">{hint}</p>
-        )}
+        {hint && !error && <p className="text-xs text-zinc-500 mt-1">{hint}</p>}
       </div>
     );
-  }
+  },
 );
 
 Input.displayName = "Input";

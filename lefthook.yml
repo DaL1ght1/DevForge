@@ -1,0 +1,34 @@
+pre-commit:
+  parallel: true
+  commands:
+    go-format:
+      root: backend/provisioner
+      glob: "backend/provisioner/**/*.go"
+      run: gofmt -w {staged_files}
+      stage_fixed: true
+    java-format:
+      root: backend
+      glob: "backend/src/**/*.java"
+      run: ./mvnw spotless:apply -DspotlessFiles={staged_files}
+      stage_fixed: true
+    frontend-format:
+      root: frontend
+      glob: "frontend/**/*.{ts,tsx,js,mjs,css,json}"
+      run: npx prettier --write {staged_files}
+      stage_fixed: true
+
+pre-push:
+  parallel: true
+  commands:
+    go-test:
+      root: backend/provisioner
+      glob: "backend/provisioner/**/*.go"
+      run: go test ./...
+    spring-test:
+      root: backend
+      glob: "backend/src/**/*.java"
+      run: ./mvnw -Dtest='!DevForgeApplicationTests' test
+    frontend-checks:
+      root: frontend
+      glob: "frontend/**/*.{ts,tsx,js,mjs,css,json}"
+      run: npm run lint && npm run typecheck && npm test

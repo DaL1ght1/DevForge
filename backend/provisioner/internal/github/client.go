@@ -26,7 +26,6 @@ func NewClient(token, owner string, isOrg bool) (*Client, error) {
 	return &Client{ghClient: gh, owner: owner, isOrg: isOrg}, nil
 }
 
-
 func (c *Client) CreateRepository(ctx context.Context, name, description string) (cloneURL, htmlURL string, err error) {
 	repo := &github.Repository{
 		Name:        new(name),

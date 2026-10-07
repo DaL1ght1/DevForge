@@ -1,4 +1,5 @@
-export type ServiceStatus = "CREATING" | "PENDING" | "PUSHED" | "DEPLOYED" | "FAILED";
+export type ServiceStatus =
+  "CREATING" | "PENDING" | "PUSHED" | "DEPLOYED" | "FAILED";
 
 export type DeploymentStatus = "DEPLOYING" | "PENDING" | "DEPLOYED" | "FAILED";
 
@@ -7,18 +8,9 @@ export type UserRole = "DEVELOPER" | "ADMIN";
 export type TemplateLanguage = "JAVA" | "GO" | "PYTHON" | "TYPESCRIPT" | string;
 
 export type TemplateFramework =
-  | "SPRING_BOOT"
-  | "GIN"
-  | "FASTAPI"
-  | "NEXT_JS"
-  | string;
+  "SPRING_BOOT" | "GIN" | "FASTAPI" | "NEXT_JS" | string;
 
-export type BuildTool =
-  | "MAVEN"
-  | "GRADLE"
-  | "GO_MODULES"
-  | "PIP"
-  | string;
+export type BuildTool = "MAVEN" | "GRADLE" | "GO_MODULES" | "PIP" | string;
 
 export interface TemplateFilter {
   framework?: TemplateFramework;

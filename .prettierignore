@@ -1,0 +1,6 @@
+backend/templates/
+backend/workspace/
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+

@@ -48,7 +48,7 @@ export function Dialog({
         className={cn(
           "relative z-50 w-full max-w-lg bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl",
           "overflow-hidden animate-in zoom-in-95 duration-150",
-          className
+          className,
         )}
       >
         <div className="flex items-center justify-between p-5 border-b border-zinc-800">

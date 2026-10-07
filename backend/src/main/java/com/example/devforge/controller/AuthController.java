@@ -24,30 +24,36 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Authentication", description = "Endpoints for user login and token refresh")
 public class AuthController {
 
-    private final AuthService authService;
+  private final AuthService authService;
 
-    @SecurityRequirements
-    @Operation(summary = "Authenticate user", description = "Authenticates user against Keycloak and returns JWT tokens")
-    @PostMapping("/login")
-    public AuthResponse login(@RequestBody @Valid LoginRequest request) {
-        return authService.login(request);
-    }
+  @SecurityRequirements
+  @Operation(
+      summary = "Authenticate user",
+      description = "Authenticates user against Keycloak and returns JWT tokens")
+  @PostMapping("/login")
+  public AuthResponse login(@RequestBody @Valid LoginRequest request) {
+    return authService.login(request);
+  }
 
-    @SecurityRequirements
-    @Operation(summary = "Refresh access token", description = "Exchanges a valid refresh token for a new access token")
-    @PostMapping("/refresh")
-    public AuthResponse refresh(@RequestBody @Valid RefreshTokenRequest request) {
-        return authService.refresh(request);
-    }
-    @SecurityRequirements
-    @Operation(summary = "Logout user", description = "Logs out the user and invalidates the refresh token")
-    @PostMapping("/logout")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void logout(
-            @RequestBody(required = false) RefreshTokenRequest request,
-            @AuthenticationPrincipal Jwt jwt
-    ) {
-        String refreshToken = request != null ? request.refreshToken() : null;
-        authService.logout(refreshToken, jwt);
-    }
+  @SecurityRequirements
+  @Operation(
+      summary = "Refresh access token",
+      description = "Exchanges a valid refresh token for a new access token")
+  @PostMapping("/refresh")
+  public AuthResponse refresh(@RequestBody @Valid RefreshTokenRequest request) {
+    return authService.refresh(request);
+  }
+
+  @SecurityRequirements
+  @Operation(
+      summary = "Logout user",
+      description = "Logs out the user and invalidates the refresh token")
+  @PostMapping("/logout")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void logout(
+      @RequestBody(required = false) RefreshTokenRequest request,
+      @AuthenticationPrincipal Jwt jwt) {
+    String refreshToken = request != null ? request.refreshToken() : null;
+    authService.logout(refreshToken, jwt);
+  }
 }

@@ -17,40 +17,52 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class KafkaServiceImplementation implements KafkaService {
 
-    private final KafkaProperties kafkaProperties;
-    private final KafkaTemplate<String, ProvisionerClient.ProvisionRequest> kafkaTemplate;
-    private final AppServiceRepository appServiceRepository;
+  private final KafkaProperties kafkaProperties;
+  private final KafkaTemplate<String, ProvisionerClient.ProvisionRequest> kafkaTemplate;
+  private final AppServiceRepository appServiceRepository;
 
-    @Override
-    public void sendProvisionRequest(ProvisionerClient.ProvisionRequest provisionRequest) {
-        log.info("Sending provision request to topic [{}] for service [{}] (ID: {})",
-                kafkaProperties.requestTopic(), provisionRequest.serviceName(), provisionRequest.serviceId());
-        kafkaTemplate.send(kafkaProperties.requestTopic(), provisionRequest.serviceId().toString(), provisionRequest);
+  @Override
+  public void sendProvisionRequest(ProvisionerClient.ProvisionRequest provisionRequest) {
+    log.info(
+        "Sending provision request to topic [{}] for service [{}] (ID: {})",
+        kafkaProperties.requestTopic(),
+        provisionRequest.serviceName(),
+        provisionRequest.serviceId());
+    kafkaTemplate.send(
+        kafkaProperties.requestTopic(), provisionRequest.serviceId().toString(), provisionRequest);
+  }
+
+  @KafkaListener(
+      topics = "${devforge.kafka.topics.responseTopic}",
+      groupId = "${devforge.kafka.group.id}")
+  @Transactional
+  public void listenProvisionResponse(ProvisionerClient.ProvisionResponse response) {
+    log.info(
+        "Received provisioning response for service ID [{}] with status [{}]",
+        response.serviceId(),
+        response.status());
+
+    if (response.serviceId() == null) {
+      log.warn("Received response without serviceId: {}", response);
+      return;
     }
-
-    @KafkaListener(
-            topics = "${devforge.kafka.topics.responseTopic}",
-            groupId = "${devforge.kafka.group.id}"
-    )
-    @Transactional
-    public void listenProvisionResponse(ProvisionerClient.ProvisionResponse response) {
-        log.info("Received provisioning response for service ID [{}] with status [{}]",
-                response.serviceId(), response.status());
-
-        if (response.serviceId() == null) {
-            log.warn("Received response without serviceId: {}", response);
-            return;
-        }
-        appServiceRepository.findById(response.serviceId()).ifPresentOrElse(service -> {
-            if ("COMPLETED".equalsIgnoreCase(response.status())) {
+    appServiceRepository
+        .findById(response.serviceId())
+        .ifPresentOrElse(
+            service -> {
+              if ("COMPLETED".equalsIgnoreCase(response.status())) {
                 service.setStatus(ServiceStatus.PUSHED);
                 service.setRepositoryUrl(response.repositoryUrl());
-            } else {
+              } else {
                 service.setStatus(ServiceStatus.FAILED);
-            }
-            appServiceRepository.save(service);
-            log.info("Service [{}] updated to status [{}] with repo [{}]",
-                    service.getName(), service.getStatus(), service.getRepositoryUrl());
-        }, () -> log.error("No service found in DB matching ID: {}", response.serviceId()));
-    }
+              }
+              appServiceRepository.save(service);
+              log.info(
+                  "Service [{}] updated to status [{}] with repo [{}]",
+                  service.getName(),
+                  service.getStatus(),
+                  service.getRepositoryUrl());
+            },
+            () -> log.error("No service found in DB matching ID: {}", response.serviceId()));
+  }
 }

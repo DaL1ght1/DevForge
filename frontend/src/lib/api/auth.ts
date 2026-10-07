@@ -13,15 +13,21 @@ export const authApi = {
   },
 
   register(dto: UserCreationDto): Promise<UserResponseDto> {
-    return api.post<UserResponseDto>("/users/register", dto, { skipAuth: true });
+    return api.post<UserResponseDto>("/users/register", dto, {
+      skipAuth: true,
+    });
   },
 
   async logout(request?: RefreshTokenRequest): Promise<void> {
     try {
       return await api.post<void>("/auth/logout", request);
     } catch (error) {
-      if (error instanceof ApiClientError && error.status === 401 && request?.refreshToken) {
-        return api.post<void>("/auth/logout", request, {skipAuth: true});
+      if (
+        error instanceof ApiClientError &&
+        error.status === 401 &&
+        request?.refreshToken
+      ) {
+        return api.post<void>("/auth/logout", request, { skipAuth: true });
       }
       throw error;
     }

@@ -4,16 +4,7 @@
     <option name="selectedModelId" value="auto" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="0bfa636a-f557-4fa6-8a4b-c23660bd5248" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/../README.md" beforeDir="false" afterPath="$PROJECT_DIR$/../README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../backend/.env.example" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/.env.example" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../backend/compose.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/compose.yaml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../backend/provisioner/internal/config/config.go" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/provisioner/internal/config/config.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/security/SecurityConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/src/main/java/com/example/devforge/security/SecurityConfig.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../backend/src/main/resources/application.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/src/main/resources/application.yaml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.env.local.example" beforeDir="false" afterPath="$PROJECT_DIR$/.env.local.example" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-    </list>
+    <list default="true" id="0bfa636a-f557-4fa6-8a4b-c23660bd5248" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -117,7 +108,7 @@
       <workItem from="1791126874924" duration="1322000" />
       <workItem from="1791168470686" duration="2420000" />
       <workItem from="1791251123626" duration="3449000" />
-      <workItem from="1791325898389" duration="4444000" />
+      <workItem from="1791325898389" duration="5068000" />
     </task>
     <servers />
   </component>

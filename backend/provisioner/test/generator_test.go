@@ -1,4 +1,4 @@
-package generator_test
+package test_test
 
 import (
 	"os"
@@ -15,6 +15,7 @@ func TestProjectGenerator(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	defer func(path string) {
 		err := os.RemoveAll(path)
 		if err != nil {
@@ -83,5 +84,55 @@ func TestProjectGenerator(t *testing.T) {
 	}
 	if !strings.Contains(string(javaData), "public class OrderServiceApplication") {
 		t.Errorf("Expected OrderServiceApplication in file, got: %s", string(javaData))
+	}
+}
+
+func TestProjectGeneratorReturnsErrorForMissingTemplate(t *testing.T) {
+	gen := generator.NewProjectGenerator(t.TempDir())
+
+	_, err := gen.Generate(model.GenerationRequest{
+		ServiceName:  "missing-service",
+		TemplateName: "does-not-exist",
+	}, t.TempDir())
+	if err == nil {
+		t.Fatal("expected missing template to return an error")
+	}
+	if !strings.Contains(err.Error(), "template not found") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestProjectGeneratorReplacesAllVariablesAndPathTokens(t *testing.T) {
+	templateRoot := t.TempDir()
+	template := filepath.Join(templateRoot, "go-gin")
+	sourceDir := filepath.Join(template, "__PACKAGE_PATH__")
+	if err := os.MkdirAll(sourceDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	content := "{{SERVICE_NAME}}|{{CLASS_NAME}}|{{PACKAGE_NAME}}|{{DESCRIPTION}}|{{DATABASE_TYPE}}"
+	if err := os.WriteFile(filepath.Join(sourceDir, "__SERVICE_NAME__.txt.template"), []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	projectDir, err := generator.NewProjectGenerator(templateRoot).Generate(model.GenerationRequest{
+		ServiceName:  "catalog-service",
+		TemplateName: "go-gin",
+		PackageName:  "com.devforge.catalog",
+		ClassName:    "CatalogService",
+		Description:  "Catalog API",
+		DatabaseType: "NONE",
+	}, t.TempDir())
+	if err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+
+	output := filepath.Join(projectDir, "com", "devforge", "catalog", "catalog-service.txt")
+	data, err := os.ReadFile(output)
+	if err != nil {
+		t.Fatalf("expected generated file: %v", err)
+	}
+	expected := "catalog-service|CatalogService|com.devforge.catalog|Catalog API|NONE"
+	if string(data) != expected {
+		t.Fatalf("unexpected generated content: %q", data)
 	}
 }

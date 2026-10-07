@@ -1,8 +1,7 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 
-export interface TextareaProps
-  extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string;
   error?: string;
   hint?: string;
@@ -33,7 +32,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
             error
               ? "focus:ring-red-500 focus:border-red-500"
               : "border-zinc-800 hover:border-zinc-700",
-            className
+            className,
           )}
           {...props}
         />
@@ -41,7 +40,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
         {hint && !error && <p className="text-xs text-zinc-500 mt-1">{hint}</p>}
       </div>
     );
-  }
+  },
 );
 
 Textarea.displayName = "Textarea";

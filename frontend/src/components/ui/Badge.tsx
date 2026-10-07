@@ -43,7 +43,7 @@ export function Badge({
         "inline-flex items-center font-mono font-medium rounded-md border select-none leading-none",
         variants[variant],
         sizes[size],
-        className
+        className,
       )}
       {...props}
     >

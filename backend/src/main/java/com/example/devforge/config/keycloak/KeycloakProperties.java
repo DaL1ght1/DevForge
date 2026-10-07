@@ -7,8 +7,7 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 @ConfigurationProperties(prefix = "devforge.keycloak")
 public record KeycloakProperties(
-        @NotBlank String serverUrl,
-        @NotBlank String realm,
-        @NotBlank String adminClientId,
-        @NotBlank String adminClientSecret
-) {}
+    @NotBlank String serverUrl,
+    @NotBlank String realm,
+    @NotBlank String adminClientId,
+    @NotBlank String adminClientSecret) {}

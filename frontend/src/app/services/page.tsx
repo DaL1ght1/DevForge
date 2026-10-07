@@ -51,7 +51,8 @@ export default function ServicesPage() {
       const servicesPage = await servicesApi.list(0, 50);
       setServices(servicesPage.content || []);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to load services";
+      const message =
+        err instanceof Error ? err.message : "Failed to load services";
       console.error(message);
     } finally {
       setLoading(false);
@@ -86,7 +87,8 @@ export default function ServicesPage() {
         !q ||
         service.name.toLowerCase().includes(q) ||
         (service.description || "").toLowerCase().includes(q);
-      const matchesStatus = statusFilter === "ALL" || service.status === statusFilter;
+      const matchesStatus =
+        statusFilter === "ALL" || service.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
   }, [search, services, statusFilter]);
@@ -94,9 +96,11 @@ export default function ServicesPage() {
   const summary = useMemo(() => {
     return {
       total: services.length,
-      ready: services.filter((svc) => svc.status === "PUSHED" || svc.status === "DEPLOYED").length,
+      ready: services.filter(
+        (svc) => svc.status === "PUSHED" || svc.status === "DEPLOYED",
+      ).length,
       provisioning: services.filter(
-        (svc) => svc.status === "CREATING" || svc.status === "PENDING"
+        (svc) => svc.status === "CREATING" || svc.status === "PENDING",
       ).length,
       failed: services.filter((svc) => svc.status === "FAILED").length,
     };
@@ -119,7 +123,8 @@ export default function ServicesPage() {
                 Service Catalog
               </h1>
               <p className="text-xs text-zinc-400 mt-1 max-w-xl">
-                Provisioned microservices, active deployments, and automated repository configurations.
+                Provisioned microservices, active deployments, and automated
+                repository configurations.
               </p>
             </div>
 
@@ -131,7 +136,13 @@ export default function ServicesPage() {
                 disabled={loading}
                 title="Refresh services"
               >
-                <RefreshCw className={loading ? "h-3.5 w-3.5 animate-spin mr-1" : "h-3.5 w-3.5 mr-1"} />
+                <RefreshCw
+                  className={
+                    loading
+                      ? "h-3.5 w-3.5 animate-spin mr-1"
+                      : "h-3.5 w-3.5 mr-1"
+                  }
+                />
                 Refresh
               </Button>
 
@@ -232,7 +243,11 @@ export default function ServicesPage() {
             </div>
           ) : filteredServices.length === 0 ? (
             <EmptyState
-              title={services.length === 0 ? "No services registered" : "No matching services found"}
+              title={
+                services.length === 0
+                  ? "No services registered"
+                  : "No matching services found"
+              }
               description={
                 services.length === 0
                   ? "Scaffold your first microservice using the multi-level initialization wizard."
@@ -285,7 +300,9 @@ export default function ServicesPage() {
                               Template
                             </span>
                             <span className="font-mono text-zinc-200 truncate max-w-45">
-                              {srv.templateVersion?.version ? `v${srv.templateVersion.version}` : "Standard Runtime"}
+                              {srv.templateVersion?.version
+                                ? `v${srv.templateVersion.version}`
+                                : "Standard Runtime"}
                             </span>
                           </div>
 
@@ -311,7 +328,9 @@ export default function ServicesPage() {
                       </div>
 
                       <div className="p-4 pt-0 border-t border-zinc-800/60 mt-3 flex items-center justify-between text-[11px] text-zinc-400 group-hover:text-zinc-300 transition-colors">
-                        <span>Created {new Date(srv.createdAt).toLocaleDateString()}</span>
+                        <span>
+                          Created {new Date(srv.createdAt).toLocaleDateString()}
+                        </span>
                         <div className="flex items-center gap-1 font-medium text-sky-400">
                           <span>Inspect</span>
                           <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />

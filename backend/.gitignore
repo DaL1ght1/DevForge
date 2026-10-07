@@ -34,3 +34,4 @@ build/
 
 ### security ###
 .env
+.env.test

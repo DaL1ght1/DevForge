@@ -90,7 +90,7 @@ interface RequestOptions extends RequestInit {
 
 async function request<T>(
   endpoint: string,
-  options: RequestOptions = {}
+  options: RequestOptions = {},
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
   const headers = new Headers(options.headers || {});
@@ -131,7 +131,11 @@ async function request<T>(
   }
 
   if (!response.ok) {
-    if (response.status === 401 && !options.skipAuth && !endpoint.startsWith("/auth/")) {
+    if (
+      response.status === 401 &&
+      !options.skipAuth &&
+      !endpoint.startsWith("/auth/")
+    ) {
       tokenStorage.clear();
       if (typeof window !== "undefined") {
         window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
@@ -162,7 +166,7 @@ export const api = {
   post<T>(
     endpoint: string,
     body?: unknown,
-    options?: RequestOptions
+    options?: RequestOptions,
   ): Promise<T> {
     return request<T>(endpoint, {
       ...options,
@@ -174,7 +178,7 @@ export const api = {
   put<T>(
     endpoint: string,
     body?: unknown,
-    options?: RequestOptions
+    options?: RequestOptions,
   ): Promise<T> {
     return request<T>(endpoint, {
       ...options,

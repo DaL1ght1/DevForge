@@ -2,11 +2,25 @@
 
 import Link from "next/link";
 import React, { useState } from "react";
-import { Eye, EyeOff, KeyRound, Terminal, User, ArrowRight, Shield } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  KeyRound,
+  Terminal,
+  User,
+  ArrowRight,
+  Shield,
+} from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/Card";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from "@/components/ui/Card";
 import { ErrorAlert } from "@/components/common/ErrorAlert";
 
 export default function LoginPage() {
@@ -50,7 +64,9 @@ export default function LoginPage() {
                   IDP CONSOLE
                 </span>
               </div>
-              <p className="text-xs text-zinc-400">Internal Developer Platform</p>
+              <p className="text-xs text-zinc-400">
+                Internal Developer Platform
+              </p>
             </div>
           </div>
 
@@ -60,7 +76,8 @@ export default function LoginPage() {
             </h1>
             <p className="text-sm text-zinc-400 leading-relaxed max-w-lg">
               Direct authentication to your local and cluster DevForge instance.
-              Scaffold microservices across Java, Go, Python, and TypeScript with pre-configured build pipelines.
+              Scaffold microservices across Java, Go, Python, and TypeScript
+              with pre-configured build pipelines.
             </p>
           </div>
 
@@ -86,7 +103,9 @@ export default function LoginPage() {
 
           <div className="flex items-center gap-2 text-xs text-zinc-500 pt-2 border-t border-zinc-850">
             <Shield className="h-3.5 w-3.5 text-zinc-400" />
-            <span>Direct local session credentials without external redirects.</span>
+            <span>
+              Direct local session credentials without external redirects.
+            </span>
           </div>
         </div>
 
@@ -133,7 +152,9 @@ export default function LoginPage() {
                       onClick={() => setShowPassword(!showPassword)}
                       className="text-zinc-400 hover:text-zinc-200 focus:outline-none"
                       tabIndex={-1}
-                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      aria-label={
+                        showPassword ? "Hide password" : "Show password"
+                      }
                     >
                       {showPassword ? (
                         <EyeOff className="h-4 w-4" />

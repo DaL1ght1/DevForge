@@ -10,10 +10,8 @@ import org.springframework.web.client.RestClient;
 @EnableConfigurationProperties({KeycloakProperties.class, KafkaProperties.class})
 public class KeycloakConfig {
 
-    @Bean
-    RestClient keycloakRestClient(KeycloakProperties props) {
-        return RestClient.builder()
-                .baseUrl(props.serverUrl())
-                .build();
-    }
+  @Bean
+  RestClient keycloakRestClient(KeycloakProperties props) {
+    return RestClient.builder().baseUrl(props.serverUrl()).build();
+  }
 }

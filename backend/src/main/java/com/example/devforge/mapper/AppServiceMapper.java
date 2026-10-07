@@ -7,15 +7,18 @@ import com.example.devforge.entity.AppService;
 import com.example.devforge.entity.TemplateVersion;
 import org.mapstruct.*;
 
-@Mapper(unmappedTargetPolicy = ReportingPolicy.IGNORE,
-        componentModel = MappingConstants.ComponentModel.SPRING)
+@Mapper(
+    unmappedTargetPolicy = ReportingPolicy.IGNORE,
+    componentModel = MappingConstants.ComponentModel.SPRING)
 public interface AppServiceMapper {
 
-    AppService toEntity(AppServiceCreationDto appServiceCreationDto);
+  AppService toEntity(AppServiceCreationDto appServiceCreationDto);
 
-    AppServiceResponse toResponse(AppService appService);
-    TemplateVersionResponse toVersionResponse(TemplateVersion templateVersion);
+  AppServiceResponse toResponse(AppService appService);
 
-    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
-    AppService partialUpdate(AppServiceCreationDto appServiceCreationDto, @MappingTarget AppService appService);
+  TemplateVersionResponse toVersionResponse(TemplateVersion templateVersion);
+
+  @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+  AppService partialUpdate(
+      AppServiceCreationDto appServiceCreationDto, @MappingTarget AppService appService);
 }

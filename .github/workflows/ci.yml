@@ -1,0 +1,131 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      go: ${{ steps.filter.outputs.go }}
+      spring: ${{ steps.filter.outputs.spring }}
+      next: ${{ steps.filter.outputs.next }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - id: filter
+        uses: dorny/paths-filter@v3.0.2
+        with:
+          filters: |
+            go:
+              - 'backend/provisioner/**'
+              - 'backend/templates/**'
+            spring:
+              - 'backend/src/**'
+              - 'backend/pom.xml'
+              - 'backend/.mvn/**'
+              - 'backend/keycloak/**'
+            next:
+              - 'frontend/**'
+
+  go:
+    needs: changes
+    if: needs.changes.outputs.go == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend/provisioner
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-go@v5.5.0
+        with:
+          go-version-file: backend/provisioner/go.mod
+          cache-dependency-path: backend/provisioner/go.sum
+      - run: go install golang.org/x/tools/cmd/goimports@v0.38.0
+      - run: test -z "$(gofmt -l .)"
+      - run: test -z "$(goimports -l .)"
+      - uses: golangci/golangci-lint-action@v8.0.0
+        with:
+          version: v2.1.6
+          working-directory: backend/provisioner
+      - run: go test ./...
+
+  spring:
+    needs: changes
+    if: needs.changes.outputs.spring == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      KEYCLOAK_SERVER_URL: http://localhost:8180
+      KEYCLOAK_INTERNAL_SERVER_URL: http://localhost:8180
+      KEYCLOAK_TEST_REALM: DevForge-test
+      KEYCLOAK_ADMIN_CLIENT_ID: devforge-admin-test
+      KEYCLOAK_ADMIN_CLIENT_SECRET: ${{ secrets.KEYCLOAK_ADMIN_CLIENT_SECRET || 'ci-test-client-secret' }}
+      KEYCLOAK_TEST_ADMIN_USERNAME: test-admin
+      KEYCLOAK_TEST_ADMIN_EMAIL: test-admin@example.com
+      KEYCLOAK_TEST_ADMIN_PASSWORD: ci-test-admin-password
+      KEYCLOAK_TEST_USER_USERNAME: test-user
+      KEYCLOAK_TEST_USER_EMAIL: test-user@example.com
+      KEYCLOAK_TEST_USER_PASSWORD: ci-test-user-password
+      KAFKA_BOOTSTRAP_SERVERS: localhost:29092
+      SERVICE_NAME: devforge-test
+      REQUEST_TOPIC: devforge-test
+      RESPONSE_TOPIC: devforge-test
+      GROUP_ID: devforge-test
+      CORS_ALLOWED_ORIGINS: http://localhost:3000
+      DEVFORGE_TEMPLATES_ROOT: templates
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-java@v4.7.1
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Start Keycloak for integration tests
+        run: |
+          jq --arg secret "$KEYCLOAK_ADMIN_CLIENT_SECRET" \
+            '(.clients[] | select(.clientId == "devforge-admin-test") | .secret) = $secret' \
+            keycloak/DevForge-test-realm.json > /tmp/DevForge-test-realm.json
+          cp /tmp/DevForge-test-realm.json keycloak/DevForge-test-realm.json
+          docker run -d --name devforge-keycloak \
+            -p 8180:8080 \
+            -v "$GITHUB_WORKSPACE/backend/keycloak:/opt/keycloak/data/import" \
+            quay.io/keycloak/keycloak:26.7.4 \
+            start-dev --import-realm
+          for i in {1..30}; do
+            curl --fail --silent http://localhost:8180/realms/DevForge-test/.well-known/openid-configuration >/dev/null && break
+            sleep 2
+          done
+      - run: ./mvnw spotless:check
+      - run: ./mvnw test
+
+  next:
+    needs: changes
+    if: needs.changes.outputs.next == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test

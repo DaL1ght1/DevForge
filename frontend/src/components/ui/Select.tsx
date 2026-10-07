@@ -7,8 +7,7 @@ export interface SelectOption {
   description?: string;
 }
 
-export interface SelectProps
-  extends React.SelectHTMLAttributes<HTMLSelectElement> {
+export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
   error?: string;
   hint?: string;
@@ -40,13 +39,17 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
             error
               ? "focus:ring-red-500 focus:border-red-500"
               : "border-zinc-800 hover:border-zinc-700",
-            className
+            className,
           )}
           {...props}
         >
           {options
             ? options.map((opt) => (
-                <option key={opt.value} value={opt.value} className="bg-zinc-900">
+                <option
+                  key={opt.value}
+                  value={opt.value}
+                  className="bg-zinc-900"
+                >
                   {opt.label}
                 </option>
               ))
@@ -56,7 +59,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
         {hint && !error && <p className="text-xs text-zinc-500 mt-1">{hint}</p>}
       </div>
     );
-  }
+  },
 );
 
 Select.displayName = "Select";

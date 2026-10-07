@@ -1,0 +1,22 @@
+spring:
+  config:
+    import: optional:file:.env.test[.properties]
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_SERVER_URL}/realms/${KEYCLOAK_TEST_REALM}
+          jwk-set-uri: ${KEYCLOAK_INTERNAL_SERVER_URL}/realms/${KEYCLOAK_TEST_REALM}/protocol/openid-connect/certs
+
+devforge:
+  admin:
+    username: ${KEYCLOAK_TEST_ADMIN_USERNAME}
+    email: ${KEYCLOAK_TEST_ADMIN_EMAIL}
+    password: ${KEYCLOAK_TEST_ADMIN_PASSWORD}
+    first-name: Test
+    last-name: Admin
+  keycloak:
+    server-url: ${KEYCLOAK_INTERNAL_SERVER_URL}
+    realm: ${KEYCLOAK_TEST_REALM}
+    adminClientId: ${KEYCLOAK_ADMIN_CLIENT_ID}
+    adminClientSecret: ${KEYCLOAK_ADMIN_CLIENT_SECRET}

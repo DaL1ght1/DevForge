@@ -20,7 +20,13 @@ import { servicesApi } from "@/lib/api/services";
 import { AppDeploymentResponse, AppServiceResponse } from "@/types/api";
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/Button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Dialog } from "@/components/ui/Dialog";
 
@@ -139,9 +145,13 @@ export default function ServiceDetailPage() {
         <Navbar />
         <div className="flex-1 flex items-center justify-center p-4">
           <Card className="w-full max-w-md border-zinc-800 bg-zinc-900/80 p-6 text-center">
-            <h2 className="text-base font-semibold text-zinc-100 mb-2">Service Not Found</h2>
+            <h2 className="text-base font-semibold text-zinc-100 mb-2">
+              Service Not Found
+            </h2>
             <p className="text-xs text-zinc-400 mb-4">
-              The service with identifier <code className="font-mono text-zinc-200">{serviceId}</code> does not exist or has been removed.
+              The service with identifier{" "}
+              <code className="font-mono text-zinc-200">{serviceId}</code> does
+              not exist or has been removed.
             </p>
             <Link href="/services">
               <Button variant="outline" size="sm">
@@ -163,7 +173,10 @@ export default function ServiceDetailPage() {
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between pb-6 border-b border-zinc-800/80 gap-4">
             <div className="space-y-1">
               <div className="flex items-center gap-2 text-xs font-mono text-zinc-400 mb-1">
-                <Link href="/services" className="hover:text-zinc-200 transition-colors">
+                <Link
+                  href="/services"
+                  className="hover:text-zinc-200 transition-colors"
+                >
                   Services
                 </Link>
                 <span>/</span>
@@ -222,7 +235,9 @@ export default function ServiceDetailPage() {
                     <Server className="h-4 w-4 text-sky-400" />
                     Service Architecture
                   </CardTitle>
-                  <span className="font-mono text-[11px] text-zinc-500">ID: {service.id}</span>
+                  <span className="font-mono text-[11px] text-zinc-500">
+                    ID: {service.id}
+                  </span>
                 </div>
               </CardHeader>
 
@@ -234,7 +249,8 @@ export default function ServiceDetailPage() {
                     </span>
                     <div className="flex items-center gap-1.5 font-medium text-zinc-200">
                       <Code2 className="h-3.5 w-3.5 text-zinc-400" />
-                      {service.templateVersion?.sourcePath || "Template unavailable"}
+                      {service.templateVersion?.sourcePath ||
+                        "Template unavailable"}
                     </div>
                   </div>
 
@@ -248,9 +264,14 @@ export default function ServiceDetailPage() {
                     </div>
                   </div>
                   <div className="mt-4 rounded-lg border border-sky-900/50 bg-sky-950/20 p-3 text-xs">
-                    <div className="font-mono text-[10px] uppercase tracking-wider text-sky-300">Template manifest metadata</div>
+                    <div className="font-mono text-[10px] uppercase tracking-wider text-sky-300">
+                      Template manifest metadata
+                    </div>
                     <pre className="mt-2 overflow-x-auto whitespace-pre-wrap text-[11px] leading-relaxed text-zinc-300">{`version: ${service.templateVersion?.version || "unknown"}\nsourcePath: ${service.templateVersion?.sourcePath || "unknown"}\nactive: ${service.templateVersion?.active ?? false}`}</pre>
-                    <p className="mt-2 text-[11px] text-zinc-500">Metadata is read from the backend template version. The full YAML is not exposed by the current API.</p>
+                    <p className="mt-2 text-[11px] text-zinc-500">
+                      Metadata is read from the backend template version. The
+                      full YAML is not exposed by the current API.
+                    </p>
                   </div>
 
                   <div className="p-3.5 rounded-lg border border-zinc-800 bg-zinc-950/60">
@@ -278,7 +299,9 @@ export default function ServiceDetailPage() {
                         GitHub Repository <ExternalLink className="h-3 w-3" />
                       </a>
                     ) : (
-                      <span className="text-zinc-500 font-mono">Provisioning repo...</span>
+                      <span className="text-zinc-500 font-mono">
+                        Provisioning repo...
+                      </span>
                     )}
                   </div>
                 </div>
@@ -295,12 +318,16 @@ export default function ServiceDetailPage() {
               <CardContent className="p-5 space-y-3 text-xs">
                 <div className="p-3 rounded-lg border border-zinc-800 bg-zinc-950/60 flex items-center justify-between">
                   <span className="text-zinc-400">Repository</span>
-                  <span className="font-mono text-zinc-200">{service.repositoryUrl ? "Connected" : "Pending"}</span>
+                  <span className="font-mono text-zinc-200">
+                    {service.repositoryUrl ? "Connected" : "Pending"}
+                  </span>
                 </div>
 
                 <div className="p-3 rounded-lg border border-zinc-800 bg-zinc-950/60 flex items-center justify-between">
                   <span className="text-zinc-400">Lifecycle State</span>
-                  <span className="font-mono text-sky-400">{service.status}</span>
+                  <span className="font-mono text-sky-400">
+                    {service.status}
+                  </span>
                 </div>
               </CardContent>
             </Card>
@@ -310,13 +337,17 @@ export default function ServiceDetailPage() {
             <CardHeader className="pb-3 border-b border-zinc-800/80">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-sm text-zinc-100">Deployment History</CardTitle>
+                  <CardTitle className="text-sm text-zinc-100">
+                    Deployment History
+                  </CardTitle>
                   <CardDescription>
-                    Environment release logs and deployment statuses for this service.
+                    Environment release logs and deployment statuses for this
+                    service.
                   </CardDescription>
                 </div>
                 <Badge variant="outline" size="sm">
-                  {deployments.length} Record{deployments.length === 1 ? "" : "s"}
+                  {deployments.length} Record
+                  {deployments.length === 1 ? "" : "s"}
                 </Badge>
               </div>
             </CardHeader>
@@ -324,7 +355,8 @@ export default function ServiceDetailPage() {
             <CardContent className="p-0">
               {deployments.length === 0 ? (
                 <div className="p-8 text-center text-xs text-zinc-500">
-                  No automated deployments recorded yet. Trigger a pipeline build to initiate a release.
+                  No automated deployments recorded yet. Trigger a pipeline
+                  build to initiate a release.
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -376,7 +408,10 @@ export default function ServiceDetailPage() {
       >
         <div className="space-y-4 text-xs text-zinc-300">
           <p>
-            Deleting <strong className="font-mono text-zinc-100">{service.name}</strong> will remove it from the catalog and teardown associated deployment records.
+            Deleting{" "}
+            <strong className="font-mono text-zinc-100">{service.name}</strong>{" "}
+            will remove it from the catalog and teardown associated deployment
+            records.
           </p>
 
           <div className="flex justify-end gap-2 pt-2 border-t border-zinc-800">

@@ -2,11 +2,26 @@
 
 import Link from "next/link";
 import React, { useState } from "react";
-import { ArrowRight, Eye, EyeOff, KeyRound, Mail, Terminal, User, UserPlus } from "lucide-react";
+import {
+  ArrowRight,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Mail,
+  Terminal,
+  User,
+  UserPlus,
+} from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/Card";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from "@/components/ui/Card";
 import { ErrorAlert } from "@/components/common/ErrorAlert";
 
 export default function RegisterPage() {
@@ -66,7 +81,8 @@ export default function RegisterPage() {
               Create Developer Account
             </CardTitle>
             <CardDescription className="text-xs text-zinc-400">
-              Register for direct access to service provisioning and deployment logs
+              Register for direct access to service provisioning and deployment
+              logs
             </CardDescription>
           </CardHeader>
 
@@ -134,7 +150,9 @@ export default function RegisterPage() {
                     onClick={() => setShowPassword(!showPassword)}
                     className="text-zinc-400 hover:text-zinc-200 focus:outline-none"
                     tabIndex={-1}
-                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    aria-label={
+                      showPassword ? "Hide password" : "Show password"
+                    }
                   >
                     {showPassword ? (
                       <EyeOff className="h-4 w-4" />
