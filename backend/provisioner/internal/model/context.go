@@ -1,13 +1,14 @@
 package model
 
 type ProvisionRequest struct {
-	ServiceID    string `json:"serviceId"`
-	ServiceName  string `json:"serviceName"`
-	TemplateName string `json:"templateName"`
-	PackageName  string `json:"packageName"`
-	ClassName    string `json:"className"`
-	Description  string `json:"description"`
-	DatabaseType string `json:"databaseType"`
+	ServiceID       string `json:"serviceId"`
+	ServiceName     string `json:"serviceName"`
+	TemplateName    string `json:"templateName"`
+	TemplateVersion string `json:"templateVersion"`
+	PackageName     string `json:"packageName"`
+	ClassName       string `json:"className"`
+	Description     string `json:"description"`
+	DatabaseType    string `json:"databaseType"`
 }
 
 type ProvisionResponse struct {
@@ -20,10 +21,11 @@ type ProvisionResponse struct {
 }
 
 type GenerationRequest struct {
-	ServiceName  string `json:"serviceName"`
-	TemplateName string `json:"templateName"`
-	PackageName  string `json:"packageName"`
-	ClassName    string `json:"className"`
-	Description  string `json:"description"`
-	DatabaseType string `json:"databaseType"`
+	ServiceName     string `json:"serviceName"`
+	TemplateName    string `json:"templateName"`
+	TemplateVersion string `json:"templateVersion"`
+	PackageName     string `json:"packageName"`
+	ClassName       string `json:"className"`
+	Description     string `json:"description"`
+	DatabaseType    string `json:"databaseType"`
 }

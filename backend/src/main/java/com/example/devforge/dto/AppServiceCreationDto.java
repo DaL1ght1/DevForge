@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Pattern;
 import java.io.Serializable;
 import java.util.UUID;
 import org.hibernate.validator.constraints.Length;
+import jakarta.validation.constraints.Size;
 
 /** DTO for {@link AppService} */
 public record AppServiceCreationDto(
@@ -17,7 +18,7 @@ public record AppServiceCreationDto(
         @NotBlank
         @Length(max = 20)
         String name,
-    String description,
+    @Size(max = 500) String description,
     @NotNull UUID templateVersionId,
     @NotBlank @Length(max = 20) String databaseType)
     implements Serializable {}

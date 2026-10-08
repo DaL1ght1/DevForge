@@ -19,4 +19,10 @@ public interface AppServiceRepository extends JpaRepository<AppService, UUID> {
   @Override
   @EntityGraph(attributePaths = {"templateVersion"})
   Page<AppService> findAll(Pageable pageable);
+
+  @EntityGraph(attributePaths = {"templateVersion"})
+  Page<AppService> findAllByOwnerKeycloakId(UUID keycloakId, Pageable pageable);
+
+  @EntityGraph(attributePaths = {"templateVersion"})
+  Optional<AppService> findByIdAndOwnerKeycloakId(UUID id, UUID keycloakId);
 }

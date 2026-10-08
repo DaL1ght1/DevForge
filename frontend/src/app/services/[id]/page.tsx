@@ -193,6 +193,11 @@ export default function ServiceDetailPage() {
               <p className="text-xs text-zinc-400 max-w-2xl mt-1">
                 {service.description || "No service description provided."}
               </p>
+              {service.status === "FAILED" && service.failureReason && (
+                <p className="mt-2 max-w-2xl rounded border border-rose-900/60 bg-rose-950/30 px-3 py-2 text-xs text-rose-300">
+                  {service.failureReason}
+                </p>
+              )}
             </div>
 
             <div className="flex items-center gap-2">

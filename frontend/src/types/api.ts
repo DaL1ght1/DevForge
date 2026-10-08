@@ -87,6 +87,7 @@ export interface AppServiceResponse {
   name: string;
   description?: string;
   repositoryUrl?: string;
+  failureReason?: string;
   status: ServiceStatus;
   templateVersion: TemplateVersionResponse;
   owner: UserResponseDto;

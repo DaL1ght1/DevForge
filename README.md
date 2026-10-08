@@ -50,6 +50,15 @@ Keycloak admin: http://localhost:8180
 Provisioner health: http://localhost:8081/health
 ```
 
+On Bash-compatible systems, From the repository root, start the entire application with:
+
+```bash
+make run
+```
+
+This starts the backend services and the frontend development server.
+
+
 The frontend uses `localhost` URLs because it runs outside Docker. Internal containers communicate through Docker service names such as `kafka`, `postgres`, and `keycloak-db`.
 
 ## Useful commands
@@ -96,4 +105,4 @@ GitHub Actions runs formatting checks, linting, and tests for only the changed s
 on pushes and pull requests targeting `main`. Full Spring tests use Testcontainers
 and therefore require Docker in CI.
 
-See [CONTRIBUTE.md](CONTRIBUTE.md) for template requirements and contribution guidelines.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for template requirements and contribution guidelines.

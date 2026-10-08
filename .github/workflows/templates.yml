@@ -1,0 +1,171 @@
+name: Generated templates
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/provisioner/**"
+      - "backend/templates/**"
+      - ".github/workflows/templates.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "backend/provisioner/**"
+      - "backend/templates/**"
+      - ".github/workflows/templates.yml"
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: templates-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      templates: ${{ steps.list.outputs.templates }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - id: list
+        shell: bash
+        run: |
+          set -euo pipefail
+          # One matrix entry per template folder, with its build tool read from the SOURCE template.yaml
+          templates="$(for d in backend/templates/*/; do
+              n="$(basename "$d")"
+              t="$(sed -n 's/^buildTool: *"\{0,1\}\([A-Z_]*\)"\{0,1\}.*/\1/p' "$d/template.yaml" | head -n 1)"
+              if [ -z "$t" ]; then echo "No buildTool in $d/template.yaml" >&2; exit 1; fi
+              printf '%s %s\n' "$n" "$t"
+            done | jq -Rsc 'split("\n") | map(select(length > 0) | split(" ") | {template: .[0], buildTool: .[1]})')"
+          test "$templates" != "[]"
+          echo "templates=$templates" >> "$GITHUB_OUTPUT"
+
+  templates:
+    needs: discover
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    name: ${{ matrix.template }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.discover.outputs.templates) }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+
+      # Go is always needed: it runs the generator (and the Go template's tests)
+      - uses: actions/setup-go@v5.5.0
+        with:
+          go-version-file: backend/provisioner/go.mod
+          cache-dependency-path: backend/provisioner/go.sum
+
+      # Only install the toolchain this template actually needs
+      - uses: actions/setup-java@v4.7.1
+        if: contains(fromJSON('["MAVEN","GRADLE","GRADLE_KOTLIN_DSL"]'), matrix.buildTool)
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@v4
+        if: contains(fromJSON('["GRADLE","GRADLE_KOTLIN_DSL"]'), matrix.buildTool)
+        with:
+          gradle-version: "8.10.2"
+
+      - uses: actions/setup-node@v4.4.0
+        if: contains(fromJSON('["NPM","PNPM"]'), matrix.buildTool)
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        if: matrix.buildTool == 'PNPM'
+        run: npm install -g pnpm@9
+
+      - uses: actions/setup-python@v5.6.0
+        if: contains(fromJSON('["PIP","POETRY"]'), matrix.buildTool)
+        with:
+          python-version: "3.12"
+
+      - uses: dtolnay/rust-toolchain@stable
+        if: matrix.buildTool == 'CARGO'
+
+      - uses: actions/setup-dotnet@v4
+        if: matrix.buildTool == 'DOTNET_NUGET'
+        with:
+          dotnet-version: "8.0.x"
+
+      - uses: shivammathur/setup-php@v2
+        if: matrix.buildTool == 'COMPOSER'
+        with:
+          php-version: "8.3"
+          extensions: mbstring, dom, fileinfo
+          tools: composer
+
+      - name: Generate template
+        id: generate
+        shell: bash
+        working-directory: backend/provisioner
+        env:
+          TEMPLATE: ${{ matrix.template }}
+        run: |
+          set -euo pipefail
+          output="$RUNNER_TEMP/generated/$TEMPLATE"
+          mkdir -p "$output"
+          project="$(go run ./cmd/template-gen \
+            -templates-root "$GITHUB_WORKSPACE/backend/templates" \
+            -template "$TEMPLATE" \
+            -service-name ci-service \
+            -output "$output")"
+          echo "Generated project: $project"
+          echo "project=$project" >> "$GITHUB_OUTPUT"
+
+      - name: Build and test generated project
+        working-directory: ${{ steps.generate.outputs.project }}
+        shell: bash
+        env:
+          BUILD_TOOL: ${{ matrix.buildTool }}
+        run: |
+          set -euo pipefail
+          case "$BUILD_TOOL" in
+            MAVEN)
+              mvn -B -q package ;;
+            GRADLE|GRADLE_KOTLIN_DSL)
+              gradle --no-daemon --console=plain build ;;
+            GO_MODULES)
+              go mod tidy
+              go test ./...
+              go build ./... ;;
+            NPM)
+              npm install --no-audit --no-fund
+              npm test --if-present
+              npm run build --if-present ;;
+            PNPM)
+              pnpm install --no-frozen-lockfile
+              pnpm test --if-present
+              pnpm run build --if-present ;;
+            PIP)
+              python -m pip install --upgrade pip
+              python -m pip install -r requirements.txt
+              python -m pytest ;;
+            POETRY)
+              python -m pip install poetry
+              poetry install --no-interaction --no-root
+              poetry run pytest ;;
+            CARGO)
+              cargo test ;;
+            COMPOSER)
+              composer install --no-interaction --prefer-dist
+              vendor/bin/phpunit tests ;;
+            DOTNET_NUGET)
+              dotnet test ;;
+            *)
+              echo "Unsupported buildTool: $BUILD_TOOL" >&2
+              exit 1 ;;
+          esac
+
+      - name: Build generated Docker image
+        working-directory: ${{ steps.generate.outputs.project }}
+        run: docker build --tag "devforge-ci:${{ matrix.template }}" .

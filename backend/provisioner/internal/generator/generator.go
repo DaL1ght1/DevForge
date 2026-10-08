@@ -67,8 +67,28 @@ func (g *ProjectGenerator) Generate(req model.GenerationRequest, outputDir strin
 	if err != nil {
 		return "", fmt.Errorf("error walking template: %w", err)
 	}
+	if err := g.writeDevForgeManifest(projectDir, req); err != nil {
+		return "", fmt.Errorf("writing .devforge.yaml: %w", err)
+	}
 
 	return projectDir, nil
+}
+
+func (g *ProjectGenerator) writeDevForgeManifest(projectDir string, req model.GenerationRequest) error {
+	content := fmt.Sprintf(
+		"template: %s\nversion: %s\nvariables:\n  SERVICE_NAME: %s\n  PACKAGE_NAME: %s\n  CLASS_NAME: %s\n  DATABASE_TYPE: %s\n",
+		quoteYaml(req.TemplateName),
+		quoteYaml(req.TemplateVersion),
+		quoteYaml(req.ServiceName),
+		quoteYaml(req.PackageName),
+		quoteYaml(req.ClassName),
+		quoteYaml(req.DatabaseType),
+	)
+	return os.WriteFile(filepath.Join(projectDir, ".devforge.yaml"), []byte(content), 0644)
+}
+
+func quoteYaml(value string) string {
+	return `"` + strings.ReplaceAll(strings.ReplaceAll(value, `\`, `\\`), `"`, `\"`) + `"`
 }
 
 func (g *ProjectGenerator) resolvePathTokens(path string, vars map[string]string) string {

@@ -41,8 +41,9 @@ func NewProvisionWorker(
 		Brokers:  brokers,
 		GroupID:  groupID,
 		Topic:    reqTopic,
-		MinBytes: 10e3,
+		MinBytes: 1,
 		MaxBytes: 10e6,
+		MaxWait:  500 * time.Millisecond,
 	})
 
 	writer := &kafka.Writer{
@@ -106,7 +107,7 @@ func (w *ProvisionWorker) Start(ctx context.Context) {
 			log.Println("[Kafka Worker] Shutting down...")
 			return
 		default:
-			msg, err := w.reader.ReadMessage(ctx)
+			msg, err := w.reader.FetchMessage(ctx)
 			if err != nil {
 				if ctx.Err() != nil {
 					return
@@ -123,6 +124,9 @@ func (w *ProvisionWorker) Start(ctx context.Context) {
 			var req model.ProvisionRequest
 			if err := json.Unmarshal(msg.Value, &req); err != nil {
 				log.Printf("[Kafka Worker] Malformed JSON request: %v", err)
+				if commitErr := w.reader.CommitMessages(ctx, msg); commitErr != nil {
+					log.Printf("[Kafka Worker] Failed to commit malformed message: %v", commitErr)
+				}
 				continue
 			}
 
@@ -132,7 +136,12 @@ func (w *ProvisionWorker) Start(ctx context.Context) {
 				log.Printf("[Kafka Worker] Provisioning failed for service [%s] (ID: %s): %s",
 					resp.ServiceName, resp.ServiceID, resp.ErrorMessage)
 			}
-			w.publishResponse(ctx, resp)
+			if err := w.publishResponse(ctx, resp); err != nil {
+				continue
+			}
+			if err := w.reader.CommitMessages(ctx, msg); err != nil {
+				log.Printf("[Kafka Worker] Failed to commit response for service [%s]: %v", resp.ServiceName, err)
+			}
 		}
 	}
 }
@@ -157,12 +166,13 @@ func (w *ProvisionWorker) executeProvision(ctx context.Context, req model.Provis
 	}(workDir)
 
 	genReq := model.GenerationRequest{
-		ServiceName:  req.ServiceName,
-		TemplateName: req.TemplateName,
-		PackageName:  req.PackageName,
-		ClassName:    req.ClassName,
-		Description:  req.Description,
-		DatabaseType: req.DatabaseType,
+		ServiceName:     req.ServiceName,
+		TemplateName:    req.TemplateName,
+		TemplateVersion: req.TemplateVersion,
+		PackageName:     req.PackageName,
+		ClassName:       req.ClassName,
+		Description:     req.Description,
+		DatabaseType:    req.DatabaseType,
 	}
 
 	outPath, err := w.gen.Generate(genReq, workDir)
@@ -178,6 +188,9 @@ func (w *ProvisionWorker) executeProvision(ctx context.Context, req model.Provis
 	}
 
 	if err := w.gitPusher.PushDirectory(ctx, outPath, cloneURL); err != nil {
+		if deleteErr := w.ghClient.DeleteRepository(ctx, req.ServiceName); deleteErr != nil {
+			log.Printf("[Kafka Worker] Failed to clean up repository [%s]: %v", req.ServiceName, deleteErr)
+		}
 		resp.ErrorMessage = fmt.Sprintf("git push failed: %v", err)
 		return resp
 	}
@@ -187,11 +200,11 @@ func (w *ProvisionWorker) executeProvision(ctx context.Context, req model.Provis
 	return resp
 }
 
-func (w *ProvisionWorker) publishResponse(ctx context.Context, resp model.ProvisionResponse) {
+func (w *ProvisionWorker) publishResponse(ctx context.Context, resp model.ProvisionResponse) error {
 	payload, err := json.Marshal(resp)
 	if err != nil {
 		log.Printf("[Kafka Worker] Serialization error: %v", err)
-		return
+		return err
 	}
 
 	err = w.writer.WriteMessages(ctx, kafka.Message{
@@ -200,9 +213,11 @@ func (w *ProvisionWorker) publishResponse(ctx context.Context, resp model.Provis
 	})
 	if err != nil {
 		log.Printf("[Kafka Worker] Failed to send response for service [%s]: %v", resp.ServiceName, err)
+		return err
 	} else {
 		log.Printf("[Kafka Worker] Published completion event for [%s] with status [%s]", resp.ServiceName, resp.Status)
 	}
+	return nil
 }
 
 func (w *ProvisionWorker) Close() {

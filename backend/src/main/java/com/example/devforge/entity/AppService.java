@@ -45,6 +45,9 @@ public class AppService {
   @Column(name = "repository_url", unique = true)
   private String repositoryUrl;
 
+  @Column(name = "failure_reason", length = 2000)
+  private String failureReason;
+
   @Column(name = "status", nullable = false)
   @Builder.Default
   @Enumerated(EnumType.STRING)

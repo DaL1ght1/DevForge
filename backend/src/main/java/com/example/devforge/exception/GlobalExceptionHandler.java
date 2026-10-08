@@ -101,6 +101,16 @@ public class GlobalExceptionHandler {
     return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
   }
 
+  @ExceptionHandler(IllegalArgumentException.class)
+  public ResponseEntity<ApiErrorResponse> handleIllegalArgument(
+      IllegalArgumentException ex, HttpServletRequest request) {
+    log.warn("Invalid request at path [{}]: {}", request.getRequestURI(), ex.getMessage());
+    ApiErrorResponse error =
+        new ApiErrorResponse(
+            HttpStatus.BAD_REQUEST.value(), "Bad Request", ex.getMessage(), request.getRequestURI());
+    return ResponseEntity.badRequest().body(error);
+  }
+
   @ExceptionHandler(IdentityProviderException.class)
   public ResponseEntity<ApiErrorResponse> handleIdp(
       IdentityProviderException ex, HttpServletRequest request) {

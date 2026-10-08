@@ -10,11 +10,17 @@ public class ProvisionerClient {
       UUID serviceId,
       String serviceName,
       String templateName,
+      String templateVersion,
       String packageName,
       String className,
       String description,
       String databaseType) {}
 
   public record ProvisionResponse(
-      UUID serviceId, String serviceName, String outputPath, String repositoryUrl, String status) {}
+      UUID serviceId,
+      String serviceName,
+      String outputPath,
+      String repositoryUrl,
+      String status,
+      String errorMessage) {}
 }

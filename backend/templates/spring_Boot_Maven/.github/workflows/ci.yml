@@ -6,15 +6,18 @@ on:
   pull_request:
     branches: [ main, master ]
 
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Build & Test
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    env:
-      IMAGE_NAME: ghcr.io/${{ github.repository }}
 
     steps:
       - name: Checkout Code
@@ -23,9 +26,9 @@ jobs:
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: '21'
-          cache: 'maven'
+          cache: maven
 
       - name: Build with Maven
         run: mvn clean verify --no-transfer-progress
@@ -38,20 +41,28 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Normalize image name
+        id: image
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
       - name: Docker metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ${{ steps.image.outputs.name }}
           tags: |
             type=raw,value=latest
+            type=sha
+
+      - name: Show Docker tags
+        run: |
+          echo "Generated tags:"
+          echo "${{ steps.meta.outputs.tags }}"
 
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v6
         with:
           context: .
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-          tags: |
-            ${{ steps.meta.outputs.tags }}
-            ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

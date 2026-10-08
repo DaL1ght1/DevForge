@@ -35,8 +35,25 @@ func (c *Client) CreateRepository(ctx context.Context, name, description string)
 	}
 	created, _, err := c.ghClient.Repositories.Create(ctx, c.owner, repo)
 	if err != nil {
+		if _, ok := err.(*github.ErrorResponse); ok {
+			existing, _, getErr := c.ghClient.Repositories.Get(ctx, c.owner, name)
+			if getErr == nil {
+				commits, _, commitsErr := c.ghClient.Repositories.ListCommits(ctx, c.owner, name, nil)
+				if commitsErr == nil && len(commits) == 0 {
+					return existing.GetCloneURL(), existing.GetHTMLURL(), nil
+				}
+			}
+		}
 		return "", "", fmt.Errorf("failed to create github repo %q: %w", name, err)
 	}
 
 	return created.GetCloneURL(), created.GetHTMLURL(), nil
+}
+
+func (c *Client) DeleteRepository(ctx context.Context, name string) error {
+	_, err := c.ghClient.Repositories.Delete(ctx, c.owner, name)
+	if err != nil {
+		return fmt.Errorf("failed to delete github repo %q: %w", name, err)
+	}
+	return nil
 }
