@@ -107,7 +107,10 @@ public class GlobalExceptionHandler {
     log.warn("Invalid request at path [{}]: {}", request.getRequestURI(), ex.getMessage());
     ApiErrorResponse error =
         new ApiErrorResponse(
-            HttpStatus.BAD_REQUEST.value(), "Bad Request", ex.getMessage(), request.getRequestURI());
+            HttpStatus.BAD_REQUEST.value(),
+            "Bad Request",
+            ex.getMessage(),
+            request.getRequestURI());
     return ResponseEntity.badRequest().body(error);
   }
 

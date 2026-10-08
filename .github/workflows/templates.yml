@@ -57,13 +57,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4.2.2
 
-      # Go is always needed: it runs the generator (and the Go template's tests)
       - uses: actions/setup-go@v5.5.0
         with:
           go-version-file: backend/provisioner/go.mod
           cache-dependency-path: backend/provisioner/go.sum
 
-      # Only install the toolchain this template actually needs
       - uses: actions/setup-java@v4.7.1
         if: contains(fromJSON('["MAVEN","GRADLE","GRADLE_KOTLIN_DSL"]'), matrix.buildTool)
         with:
@@ -144,8 +142,10 @@ jobs:
               npm run build --if-present ;;
             PNPM)
               pnpm install --no-frozen-lockfile
-              pnpm test --if-present
-              pnpm run build --if-present ;;
+              # With pnpm, options must come BEFORE the script name,
+              # otherwise they are passed to the script itself
+              pnpm run --if-present test
+              pnpm run --if-present build ;;
             PIP)
               python -m pip install --upgrade pip
               python -m pip install -r requirements.txt

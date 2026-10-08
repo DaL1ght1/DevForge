@@ -51,11 +51,9 @@ class TemplateContextResolverEdgeCasesTest {
   @Test
   void protectsGeneratedJavaIdentifiers() {
     TemplateContext numeric =
-        resolver.resolve(
-            new AppServiceCreationDto("123-service", null, UUID.randomUUID(), "NONE"));
+        resolver.resolve(new AppServiceCreationDto("123-service", null, UUID.randomUUID(), "NONE"));
     TemplateContext keyword =
-        resolver.resolve(
-            new AppServiceCreationDto("class", null, UUID.randomUUID(), "NONE"));
+        resolver.resolve(new AppServiceCreationDto("class", null, UUID.randomUUID(), "NONE"));
 
     assertThat(numeric.packageName()).isEqualTo("com.devforge.service123service");
     assertThat(numeric.className()).isEqualTo("App123Service");

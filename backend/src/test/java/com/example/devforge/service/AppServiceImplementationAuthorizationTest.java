@@ -18,7 +18,8 @@ class AppServiceImplementationAuthorizationTest {
 
   private final AppServiceRepository repository = mock(AppServiceRepository.class);
   private final AppServiceImplementation service =
-      new AppServiceImplementation(repository, null, null, null, null, null, mock(ProvisioningJobRepository.class));
+      new AppServiceImplementation(
+          repository, null, null, null, null, null, mock(ProvisioningJobRepository.class));
 
   @Test
   void userCannotReadAnotherUsersService() {
@@ -37,7 +38,8 @@ class AppServiceImplementationAuthorizationTest {
     UUID serviceId = UUID.randomUUID();
     UUID userA = UUID.randomUUID();
     UUID userB = UUID.randomUUID();
-    AppService ownedByB = AppService.builder().id(serviceId).owner(User.builder().keycloakId(userB).build()).build();
+    AppService ownedByB =
+        AppService.builder().id(serviceId).owner(User.builder().keycloakId(userB).build()).build();
     when(repository.findById(serviceId)).thenReturn(Optional.of(ownedByB));
 
     assertThatThrownBy(() -> service.deleteService(userA, serviceId))

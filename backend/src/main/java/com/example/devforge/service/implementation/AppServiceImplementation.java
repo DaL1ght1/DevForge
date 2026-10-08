@@ -5,9 +5,9 @@ import com.example.devforge.client.TemplateContextResolver;
 import com.example.devforge.client.model.TemplateContext;
 import com.example.devforge.dto.AppServiceCreationDto;
 import com.example.devforge.entity.AppService;
-import com.example.devforge.entity.ServiceStatus;
 import com.example.devforge.entity.ProvisioningJob;
 import com.example.devforge.entity.ProvisioningStatus;
+import com.example.devforge.entity.ServiceStatus;
 import com.example.devforge.entity.TemplateVersion;
 import com.example.devforge.entity.User;
 import com.example.devforge.exception.AppServiceNotFoundException;
@@ -16,24 +16,24 @@ import com.example.devforge.exception.UnauthorizedAccessException;
 import com.example.devforge.exception.UserNotFoundException;
 import com.example.devforge.mapper.AppServiceMapper;
 import com.example.devforge.repository.AppServiceRepository;
+import com.example.devforge.repository.ProvisioningJobRepository;
 import com.example.devforge.repository.TemplateVersionRepository;
 import com.example.devforge.repository.UserRepository;
-import com.example.devforge.repository.ProvisioningJobRepository;
 import com.example.devforge.service.AppServiceService;
 import com.example.devforge.service.ProvisionRequestedEvent;
-import java.util.UUID;
-import java.util.Map;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.yaml.snakeyaml.Yaml;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
+import org.yaml.snakeyaml.Yaml;
 
 @Service
 @Slf4j
@@ -81,10 +81,7 @@ public class AppServiceImplementation implements AppServiceService {
     service.setStatus(ServiceStatus.CREATING);
     AppService saved = appServiceRepository.save(service);
     provisioningJobRepository.save(
-        ProvisioningJob.builder()
-            .service(saved)
-            .status(ProvisioningStatus.PENDING)
-            .build());
+        ProvisioningJob.builder().service(saved).status(ProvisioningStatus.PENDING).build());
     TemplateContext ctx = contextResolver.resolve(appServiceDto);
 
     ProvisionerClient.ProvisionRequest provRequest =
@@ -135,9 +132,16 @@ public class AppServiceImplementation implements AppServiceService {
   private void validateDescription(String description) {
     if (description != null
         && (description.length() > 500
-            || description.codePoints()
-                .anyMatch(codePoint -> Character.isISOControl(codePoint) && codePoint != '\n' && codePoint != '\r' && codePoint != '\t'))) {
-      throw new IllegalArgumentException("Description contains unsupported characters or is too long");
+            || description
+                .codePoints()
+                .anyMatch(
+                    codePoint ->
+                        Character.isISOControl(codePoint)
+                            && codePoint != '\n'
+                            && codePoint != '\r'
+                            && codePoint != '\t'))) {
+      throw new IllegalArgumentException(
+          "Description contains unsupported characters or is too long");
     }
   }
 
@@ -159,7 +163,8 @@ public class AppServiceImplementation implements AppServiceService {
         Object options = variableMap.get("options");
         if (options instanceof List<?> optionList
             && optionList.stream().map(String::valueOf).noneMatch(databaseType::equals)) {
-          throw new IllegalArgumentException("databaseType is not supported by the selected template");
+          throw new IllegalArgumentException(
+              "databaseType is not supported by the selected template");
         }
         return;
       }
