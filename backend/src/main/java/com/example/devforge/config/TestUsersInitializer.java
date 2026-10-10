@@ -9,6 +9,7 @@ import java.util.Locale;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -43,7 +44,7 @@ public class TestUsersInitializer implements ApplicationRunner {
   private String userPassword;
 
   @Override
-  public void run(ApplicationArguments args) {
+  public void run(@NonNull ApplicationArguments args) {
     createUser(adminUsername, adminEmail, adminPassword, "Test", "Admin", UserRole.ADMIN, true);
     createUser(userUsername, userEmail, userPassword, "Test", "User", UserRole.DEVELOPER, false);
   }
@@ -58,15 +59,26 @@ public class TestUsersInitializer implements ApplicationRunner {
       boolean admin) {
     String normalizedUsername = username.trim().toLowerCase(Locale.ROOT);
     String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
-    UUID keycloakId = keycloakAdminClient.findUserId(normalizedUsername);
-    if (keycloakId == null) {
-      keycloakId =
-          keycloakAdminClient.createUser(
-              new UserCreationDto(
-                  normalizedUsername, normalizedEmail, password, firstName, lastName));
-    }
-    if (admin) {
-      keycloakAdminClient.assignRealmRole(keycloakId, UserRole.ADMIN.name());
+    UUID keycloakId;
+    try {
+      keycloakId = keycloakAdminClient.findUserId(normalizedUsername);
+      if (keycloakId == null) {
+        keycloakId =
+            keycloakAdminClient.createUser(
+                new UserCreationDto(
+                    normalizedUsername, normalizedEmail, password, firstName, lastName));
+      }
+      if (keycloakId == null) {
+        log.warn(
+            "Keycloak user ID is null for [{}]. Skipping database creation.", normalizedUsername);
+        return;
+      }
+      if (admin) {
+        keycloakAdminClient.assignRealmRole(keycloakId, UserRole.ADMIN.name());
+      }
+    } catch (Exception e) {
+      log.error("Failed to ensure Keycloak test user [{}]: {}", normalizedUsername, e.getMessage());
+      return;
     }
     if (!userRepository.existsByUsername(normalizedUsername)
         && !userRepository.existsByEmail(normalizedEmail)) {

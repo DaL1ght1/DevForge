@@ -59,6 +59,10 @@ public class AdminUserInitializer implements ApplicationRunner {
     UUID keycloakId;
     try {
       keycloakId = keycloakAdminClient.createUser(dto);
+      if (keycloakId == null) {
+        log.warn("Keycloak user creation returned null ID. Skipping admin user creation.");
+        return;
+      }
       keycloakAdminClient.assignRealmRole(keycloakId, UserRole.ADMIN.name());
       log.info("Keycloak user created with ID [{}] and role [ADMIN].", keycloakId);
 
