@@ -2,13 +2,13 @@ package com.example.devforge.service.implementation;
 
 import com.example.devforge.client.ProvisionerClient;
 import com.example.devforge.config.kafka.KafkaProperties;
+import com.example.devforge.dto.ProvisionRequestedEvent;
 import com.example.devforge.entity.ProvisioningJob;
 import com.example.devforge.entity.ProvisioningStatus;
 import com.example.devforge.entity.ServiceStatus;
 import com.example.devforge.repository.AppServiceRepository;
 import com.example.devforge.repository.ProvisioningJobRepository;
 import com.example.devforge.service.KafkaService;
-import com.example.devforge.service.ProvisionRequestedEvent;
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

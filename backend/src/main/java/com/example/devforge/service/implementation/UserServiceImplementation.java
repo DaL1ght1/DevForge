@@ -1,6 +1,7 @@
 package com.example.devforge.service.implementation;
 
 import com.example.devforge.config.keycloak.KeycloakAdminClient;
+import com.example.devforge.dto.CompleteSignupRequest;
 import com.example.devforge.dto.UserCreationDto;
 import com.example.devforge.dto.UserResponseDto;
 import com.example.devforge.dto.UserUpdateDto;
@@ -68,7 +69,7 @@ public class UserServiceImplementation implements UserService {
     return userRepository
         .findByKeycloakId(keycloakId)
         .map(userMapper::toResponseDto)
-        .orElseGet(() -> createFromToken(keycloakId, jwt));
+        .orElseThrow(() -> new UnauthorizedAccessException("Sign-up not completed"));
   }
 
   @Override
@@ -135,42 +136,43 @@ public class UserServiceImplementation implements UserService {
     return userRepository.findAll(pageable).map(userMapper::toResponseDto);
   }
 
-  private UserResponseDto createFromToken(UUID keycloakId, Jwt jwt) {
-    String email = jwt.getClaimAsString("email");
-    String username = jwt.getClaimAsString("preferred_username");
+  @Override
+  public UserResponseDto completeSocialSignup(
+      UUID keycloakId, String email, CompleteSignupRequest dto) {
+    String username = dto.username().trim().toLowerCase(Locale.ROOT);
+    String firstName = dto.firstName().trim();
+    String lastName = dto.lastName().trim();
+
+    userRepository
+        .findByUsername(username)
+        .filter(u -> !u.getKeycloakId().equals(keycloakId))
+        .ifPresent(
+            _ -> {
+              throw new UserAlreadyExistsException("Username already taken");
+            });
+    userRepository
+        .findByEmail(email)
+        .filter(u -> !u.getKeycloakId().equals(keycloakId))
+        .ifPresent(
+            _ -> {
+              throw new UserAlreadyExistsException("An account with this email already exists");
+            });
+
+    Optional<User> existing = userRepository.findByKeycloakId(keycloakId);
+
+    keycloakAdminClient.resetPassword(keycloakId, dto.password());
+    keycloakAdminClient.updateUser(keycloakId, username, email, firstName, lastName);
+    if (existing.isEmpty()) {
+      keycloakAdminClient.assignRealmRole(keycloakId, UserRole.DEVELOPER.name());
+    }
+
     User user =
-        User.builder()
-            .keycloakId(keycloakId)
-            .username(username != null ? username : email)
-            .email(email)
-            .firstName(orEmpty(jwt.getClaimAsString("given_name")))
-            .lastName(orEmpty(jwt.getClaimAsString("family_name")))
-            .role(roleFrom(jwt))
-            .build();
-    try {
-      return userMapper.toResponseDto(userRepository.saveAndFlush(user));
-    } catch (DataIntegrityViolationException e) {
-      log.error("Failed to create user from token: {}", keycloakId, e);
-      return userRepository
-          .findByKeycloakId(keycloakId)
-          .map(userMapper::toResponseDto)
-          .orElseThrow(() -> e);
-    }
-  }
-
-  private UserRole roleFrom(Jwt jwt) {
-    Map<String, Object> realmAccess = jwt.getClaim("realm_access");
-    if (realmAccess != null && realmAccess.get("roles") instanceof Collection<?> roles) {
-      for (UserRole r : UserRole.values()) {
-        if (roles.contains(r.name())) {
-          return r;
-        }
-      }
-    }
-    return UserRole.DEVELOPER;
-  }
-
-  private static String orEmpty(String s) {
-    return s == null ? "" : s;
+        existing.orElseGet(
+            () -> User.builder().keycloakId(keycloakId).role(UserRole.DEVELOPER).build());
+    user.setUsername(username);
+    user.setEmail(email);
+    user.setFirstName(firstName);
+    user.setLastName(lastName);
+    return userMapper.toResponseDto(userRepository.saveAndFlush(user));
   }
 }

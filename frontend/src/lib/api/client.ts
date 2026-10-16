@@ -1,14 +1,14 @@
-import { ApiErrorResponse, AuthResponse } from "@/types/api";
+import { ApiErrorResponse } from "@/types/api";
 
-const API_BASE_URL =
+export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ||
   process.env.NEXT_PUBLIC_BACKEND_URL ||
   process.env.BACKEND_URL ||
   "http://localhost:8080/api/v1";
 
-const ACCESS_TOKEN_KEY = "devforge_access_token";
-const REFRESH_TOKEN_KEY = "devforge_refresh_token";
 export const AUTH_EXPIRED_EVENT = "devforge:auth-expired";
+
+const CSRF_HEADER = { name: "X-Requested-With", value: "devforge" };
 
 export class ApiClientError extends Error {
   public status: number;
@@ -26,56 +26,21 @@ export class ApiClientError extends Error {
   }
 }
 
-export const tokenStorage = {
-  getAccessToken(): string | null {
-    if (typeof window === "undefined") return null;
-    return localStorage.getItem(ACCESS_TOKEN_KEY);
-  },
-  getRefreshToken(): string | null {
-    if (typeof window === "undefined") return null;
-    return localStorage.getItem(REFRESH_TOKEN_KEY);
-  },
-  setTokens(accessToken: string, refreshToken?: string) {
-    if (typeof window === "undefined") return;
-    localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
-    if (refreshToken) {
-      localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
-    }
-  },
-  clear() {
-    if (typeof window === "undefined") return;
-    localStorage.removeItem(ACCESS_TOKEN_KEY);
-    localStorage.removeItem(REFRESH_TOKEN_KEY);
-  },
-};
+let refreshPromise: Promise<boolean> | null = null;
 
-let refreshPromise: Promise<string | null> | null = null;
-
-async function refreshAccessToken(): Promise<string | null> {
-  const refreshToken = tokenStorage.getRefreshToken();
-  if (!refreshToken) return null;
-
+async function refreshSession(): Promise<boolean> {
   if (refreshPromise) return refreshPromise;
 
   refreshPromise = (async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refreshToken }),
+        credentials: "include",
+        headers: { [CSRF_HEADER.name]: CSRF_HEADER.value },
       });
-
-      if (!res.ok) {
-        tokenStorage.clear();
-        return null;
-      }
-
-      const data: AuthResponse = await res.json();
-      tokenStorage.setTokens(data.accessToken, data.refreshToken);
-      return data.accessToken;
+      return res.ok;
     } catch {
-      tokenStorage.clear();
-      return null;
+      return false;
     } finally {
       refreshPromise = null;
     }
@@ -98,32 +63,19 @@ async function request<T>(
   if (!headers.has("Content-Type") && !(options.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
   }
+  headers.set(CSRF_HEADER.name, CSRF_HEADER.value);
 
-  if (!options.skipAuth) {
-    const token = tokenStorage.getAccessToken();
-    if (token) {
-      headers.set("Authorization", `Bearer ${token}`);
-    }
-  }
+  const init: RequestInit = { ...options, headers, credentials: "include" };
 
-  let response = await fetch(url, {
-    ...options,
-    headers,
-  });
+  let response = await fetch(url, init);
 
-  if (
+  const canRefresh =
     response.status === 401 &&
     !options.skipAuth &&
-    !endpoint.startsWith("/auth/")
-  ) {
-    const newToken = await refreshAccessToken();
-    if (newToken) {
-      headers.set("Authorization", `Bearer ${newToken}`);
-      response = await fetch(url, {
-        ...options,
-        headers,
-      });
-    }
+    !endpoint.startsWith("/auth/");
+
+  if (canRefresh && (await refreshSession())) {
+    response = await fetch(url, init);
   }
 
   if (response.status === 204) {
@@ -136,7 +88,6 @@ async function request<T>(
       !options.skipAuth &&
       !endpoint.startsWith("/auth/")
     ) {
-      tokenStorage.clear();
       if (typeof window !== "undefined") {
         window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
       }

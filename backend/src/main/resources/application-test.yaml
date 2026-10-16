@@ -15,6 +15,9 @@ devforge:
     password: ${KEYCLOAK_TEST_ADMIN_PASSWORD}
     first-name: Test
     last-name: Admin
+  cookies:
+    secure: ${COOKIES_SECURE:false}
+    refresh-ttl: PT30M
   keycloak:
     server-url: ${KEYCLOAK_INTERNAL_SERVER_URL}
     realm: ${KEYCLOAK_TEST_REALM}

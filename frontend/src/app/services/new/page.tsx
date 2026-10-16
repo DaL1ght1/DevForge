@@ -60,9 +60,6 @@ export default function NewServicePage() {
   const [databaseType, setDatabaseType] = useState("");
   const [isProvisioning, setIsProvisioning] = useState(false);
   const [provisionError, setProvisionError] = useState<string | null>(null);
-
-  // Load the template catalog. State is only set after an await, never
-  // synchronously in the effect body. `reloadKey` re-runs it on retry.
   useEffect(() => {
     let cancelled = false;
 
@@ -377,7 +374,7 @@ export default function NewServicePage() {
 
       <main className="flex-1 px-4 py-8 sm:px-6">
         <div className="mx-auto max-w-5xl space-y-8">
-          {/* Header */}
+          {}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-6 border-b border-zinc-800/80 gap-4">
             <div>
               <div className="flex items-center gap-2 text-xs font-mono text-zinc-400 mb-1">

@@ -2,21 +2,28 @@
 
 import React, {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useState,
-  useCallback,
 } from "react";
-import { UserResponseDto, LoginRequest, UserCreationDto } from "@/types/api";
+import { useRouter, usePathname } from "next/navigation";
+import {
+  LoginRequest,
+  SessionResponse,
+  UserCreationDto,
+  UserResponseDto,
+} from "@/types/api";
 import { authApi } from "@/lib/api/auth";
 import { usersApi } from "@/lib/api/users";
-import { AUTH_EXPIRED_EVENT, tokenStorage } from "@/lib/api/client";
-import { useRouter, usePathname } from "next/navigation";
+import { AUTH_EXPIRED_EVENT } from "@/lib/api/client";
 
 interface AuthContextType {
   user: UserResponseDto | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  completeOAuthLogin: (ticket: string) => Promise<void>;
+  completeSocialSignup: (res: SessionResponse) => Promise<void>;
   login: (credentials: LoginRequest) => Promise<void>;
   register: (data: UserCreationDto) => Promise<void>;
   logout: () => Promise<void>;
@@ -25,7 +32,12 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const PUBLIC_PATHS = ["/login", "/register"];
+const PUBLIC_PATHS = [
+  "/login",
+  "/register",
+  "/oauth2/callback",
+  "/complete-signup",
+];
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserResponseDto | null>(null);
@@ -35,41 +47,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshProfile = useCallback(async () => {
     try {
-      const currentUser = await usersApi.getCurrentUser();
-      setUser(currentUser);
+      setUser(await usersApi.getCurrentUser());
     } catch {
-      tokenStorage.clear();
       setUser(null);
     }
   }, []);
 
   useEffect(() => {
-    async function initAuth() {
-      const token = tokenStorage.getAccessToken();
-      if (!token) {
-        setIsLoading(false);
-        return;
-      }
-      try {
-        await refreshProfile();
-      } catch {
-        tokenStorage.clear();
-        setUser(null);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    initAuth()
-      .then((r) => r)
-      .catch((e) => console.error("Failed to initialize auth:", e));
-  }, [refreshProfile]);
+    let cancelled = false;
+
+    usersApi
+      .getCurrentUser()
+      .then((u) => {
+        if (!cancelled) setUser(u);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
-    const handleAuthExpired = () => {
-      tokenStorage.clear();
-      setUser(null);
-    };
-
+    const handleAuthExpired = () => setUser(null);
     window.addEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired);
     return () =>
       window.removeEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired);
@@ -85,51 +88,60 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user, isLoading, pathname, router]);
 
-  const login = async (credentials: LoginRequest) => {
-    setIsLoading(true);
-    try {
-      const res = await authApi.login(credentials);
-      tokenStorage.setTokens(res.accessToken, res.refreshToken);
+  const applySession = useCallback(
+    async (res: SessionResponse) => {
       if (res.user) {
         setUser(res.user);
       } else {
         await refreshProfile();
       }
-      router.push("/services");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      router.replace("/services");
+    },
+    [refreshProfile, router],
+  );
 
-  const register = async (data: UserCreationDto) => {
-    setIsLoading(true);
-    try {
-      await authApi.register(data);
-      await login({
-        username: data.username,
-        password: data.password,
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const logout = async () => {
-    try {
-      const refreshToken = tokenStorage.getRefreshToken();
-      if (refreshToken) {
-        await authApi.logout({ refreshToken });
-      } else {
-        await authApi.logout();
+  const login = useCallback(
+    async (credentials: LoginRequest) => {
+      setIsLoading(true);
+      try {
+        await applySession(await authApi.login(credentials));
+      } finally {
+        setIsLoading(false);
       }
+    },
+    [applySession],
+  );
+
+  const completeOAuthLogin = useCallback(
+    async (ticket: string) => {
+      await applySession(await authApi.exchangeTicket(ticket));
+    },
+    [applySession],
+  );
+
+  const register = useCallback(
+    async (data: UserCreationDto) => {
+      setIsLoading(true);
+      try {
+        await authApi.register(data);
+        await login({ username: data.username, password: data.password });
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [login],
+  );
+
+  const logout = useCallback(async () => {
+    try {
+      await authApi.logout();
     } catch (error) {
       console.warn("Backend logout failed:", error);
     } finally {
-      tokenStorage.clear();
       setUser(null);
       router.push("/login");
     }
-  };
+  }, [router]);
 
   return (
     <AuthContext.Provider
@@ -141,6 +153,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         register,
         logout,
         refreshProfile,
+        completeOAuthLogin,
+        completeSocialSignup: applySession,
       }}
     >
       {children}

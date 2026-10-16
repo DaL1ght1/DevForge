@@ -192,6 +192,21 @@ public class KeycloakAdminClient {
     }
   }
 
+  public boolean hasPassword(UUID userId) {
+    try {
+      List<Map<String, Object>> creds =
+          keycloakRestClient
+              .get()
+              .uri("/admin/realms/{realm}/users/{id}/credentials", props.realm(), userId)
+              .headers(bearer())
+              .retrieve()
+              .body(new ParameterizedTypeReference<>() {});
+      return creds != null && creds.stream().anyMatch(c -> "password".equals(c.get("type")));
+    } catch (RestClientException e) {
+      throw new IdentityProviderException("Could not read Keycloak credentials", e);
+    }
+  }
+
   // ---------------------------------------------------------------- internals
   private static @NonNull Map<String, Object> getBody(UserCreationDto dto) {
     String username = dto.username().trim().toLowerCase(Locale.ROOT);

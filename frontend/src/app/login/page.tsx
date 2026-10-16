@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { SocialButtons } from "@/components/common/SocialButtons";
 import React, { useState } from "react";
 import {
   Eye,
@@ -122,7 +123,7 @@ export default function LoginPage() {
           <CardContent className="pt-2">
             <form onSubmit={handleSubmit} className="space-y-4">
               <ErrorAlert error={error} />
-
+              <SocialButtons />
               <Input
                 label="Username or Email"
                 id="username"

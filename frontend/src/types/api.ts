@@ -12,6 +12,8 @@ export type TemplateFramework =
 
 export type BuildTool = "MAVEN" | "GRADLE" | "GO_MODULES" | "PIP" | string;
 
+export type SocialProvider = "google" | "github";
+
 export interface TemplateFilter {
   framework?: TemplateFramework;
   buildTool?: BuildTool;
@@ -108,19 +110,6 @@ export interface LoginRequest {
   username: string;
   password: string;
 }
-
-export interface RefreshTokenRequest {
-  refreshToken: string;
-}
-
-export interface AuthResponse {
-  accessToken: string;
-  refreshToken: string;
-  expiresIn: number;
-  tokenType: string;
-  user?: UserResponseDto | null;
-}
-
 export interface Page<T> {
   content: T[];
   totalElements: number;
@@ -140,4 +129,22 @@ export interface ApiErrorResponse {
   message: string;
   path?: string;
   validationErrors?: Record<string, string>;
+}
+
+export interface SignupPendingResponse {
+  email: string;
+  username: string;
+  firstName: string;
+  lastName: string;
+}
+export interface CompleteSignupRequest {
+  signupToken: string;
+  username: string;
+  firstName: string;
+  lastName: string;
+  password: string;
+}
+export interface SessionResponse {
+  user: UserResponseDto | null;
+  expiresIn: number;
 }

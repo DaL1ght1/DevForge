@@ -34,7 +34,7 @@
   "loginWithEmailAllowed": true,
   "duplicateEmailsAllowed": false,
   "resetPasswordAllowed": false,
-  "editUsernameAllowed": false,
+  "editUsernameAllowed": true,
   "bruteForceProtected": false,
   "permanentLockout": false,
   "maxTemporaryLockouts": 0,
@@ -831,7 +831,7 @@
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
       "redirectUris": [
-        "/*"
+        "http://localhost:8080/api/v1/auth/oauth2/callback"
       ],
       "webOrigins": [
         "/*"
@@ -839,7 +839,7 @@
       "notBefore": 0,
       "bearerOnly": false,
       "consentRequired": false,
-      "standardFlowEnabled": false,
+      "standardFlowEnabled": true,
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": true,
       "serviceAccountsEnabled": false,
@@ -1733,7 +1733,57 @@
   "enabledEventTypes": [],
   "adminEventsEnabled": false,
   "adminEventsDetailsEnabled": false,
-  "identityProviders": [],
+  "identityProviders": [
+    {
+      "alias": "github",
+      "displayName": "",
+      "internalId": "255754fd-119c-4f7e-a94d-0d943097a3fc",
+      "providerId": "github",
+      "enabled": true,
+      "trustEmail": true,
+      "storeToken": false,
+      "linkOnly": false,
+      "hideOnLogin": false,
+      "firstBrokerLoginFlowAlias": "Identity Providers Login",
+      "config": {
+        "githubJsonFormat": "false",
+        "clientId": "Ov23li1FRFCFjqcOsXtQ",
+        "acceptsPromptNoneForwardFromClient": "false",
+        "disableUserInfo": "false",
+        "showInAccountConsole": "ALWAYS",
+        "filteredByClaim": "false",
+        "syncMode": "IMPORT",
+        "clientSecret": "**********",
+        "caseSensitiveOriginalUsername": "false"
+      },
+      "types": []
+    },
+    {
+      "alias": "google",
+      "displayName": "Google",
+      "internalId": "f50e70ce-af8f-4fae-8426-593a642e4d23",
+      "providerId": "google",
+      "enabled": true,
+      "trustEmail": true,
+      "storeToken": false,
+      "linkOnly": false,
+      "hideOnLogin": false,
+      "firstBrokerLoginFlowAlias": "Identity Providers Login",
+      "config": {
+        "acceptsPromptNoneForwardFromClient": "false",
+        "clientId": "36228328388-fr1df5svjr2dotlsfirh8obojlgckr1n.apps.googleusercontent.com",
+        "disableUserInfo": "false",
+        "showInAccountConsole": "ALWAYS",
+        "filteredByClaim": "false",
+        "syncMode": "IMPORT",
+        "clientSecret": "**********",
+        "caseSensitiveOriginalUsername": "false",
+        "issuer": "https://accounts.google.com",
+        "jwtAuthorizationGrantMaxAllowedAssertionExpiration": "3600"
+      },
+      "types": []
+    }
+  ],
   "identityProviderMappers": [],
   "components": {
     "org.keycloak.services.clientregistration.policy.ClientRegistrationPolicy": [
@@ -2147,6 +2197,112 @@
       ]
     },
     {
+      "id": "7669b6de-6a5a-438e-824d-8fa5b8b65b14",
+      "alias": "Identity Providers Login",
+      "description": "Actions taken after first broker login with identity provider account, which is not yet linked to any Keycloak account",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorConfig": "Identity Providers Login review profile config",
+          "authenticator": "idp-review-profile",
+          "authenticatorFlow": false,
+          "requirement": "DISABLED",
+          "priority": 10,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticatorFlow": true,
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "autheticatorFlow": true,
+          "flowAlias": "Identity Providers Login User creation or linking",
+          "userSetupAllowed": false
+        },
+        {
+          "authenticatorFlow": true,
+          "requirement": "CONDITIONAL",
+          "priority": 60,
+          "autheticatorFlow": true,
+          "flowAlias": "Identity Providers Login First Broker Login - Conditional Organization",
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
+      "id": "cbb8d527-8b24-4588-9714-695ca4fcd2dd",
+      "alias": "Identity Providers Login First Broker Login - Conditional Organization",
+      "description": "Flow to determine if the authenticator that adds organization members is to be used",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "conditional-user-configured",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "idp-add-organization-member",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
+      "id": "7b7bea7c-4300-40ea-9f1b-6b45e1bca615",
+      "alias": "Identity Providers Login Handle Existing Account",
+      "description": "Handle what to do if there is existing account with same email/username like authenticated identity provider",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "idp-auto-link",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 0,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
+      "id": "23282e18-75a5-4aad-8ac9-a97a16e77807",
+      "alias": "Identity Providers Login User creation or linking",
+      "description": "Flow for the existing/non-existing user alternatives",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorConfig": "Identity Providers Login create unique user config",
+          "authenticator": "idp-create-user-if-unique",
+          "authenticatorFlow": false,
+          "requirement": "ALTERNATIVE",
+          "priority": 10,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticatorFlow": true,
+          "requirement": "ALTERNATIVE",
+          "priority": 20,
+          "autheticatorFlow": true,
+          "flowAlias": "Identity Providers Login Handle Existing Account",
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
       "id": "554bb2c4-2b56-4494-8e90-0770088723fd",
       "alias": "Organization",
       "providerId": "basic-flow",
@@ -2456,6 +2612,15 @@
       ]
     },
     {
+      "id": "32361763-e177-43c9-8044-75f03b4c3fed",
+      "alias": "google auth",
+      "description": "",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": []
+    },
+    {
       "id": "824e8555-b9bf-4ca9-a228-b506a222378c",
       "alias": "registration",
       "description": "Registration flow",
@@ -2579,6 +2744,20 @@
   ],
   "authenticatorConfig": [
     {
+      "id": "872dcc18-170b-457d-a650-f2c5a02418c2",
+      "alias": "Identity Providers Login create unique user config",
+      "config": {
+        "require.password.update.after.registration": "false"
+      }
+    },
+    {
+      "id": "2f7c2b18-7005-42d8-a786-c824ec93cb16",
+      "alias": "Identity Providers Login review profile config",
+      "config": {
+        "update.profile.on.first.login": "missing"
+      }
+    },
+    {
       "id": "00c9ff1f-b639-487a-a20c-64c982dd6b63",
       "alias": "browser-conditional-credential",
       "config": {
@@ -2612,7 +2791,7 @@
       "alias": "TERMS_AND_CONDITIONS",
       "name": "Terms and Conditions",
       "providerId": "TERMS_AND_CONDITIONS",
-      "enabled": false,
+      "enabled": true,
       "defaultAction": false,
       "priority": 20,
       "config": {}
@@ -2693,7 +2872,7 @@
       "alias": "VERIFY_PROFILE",
       "name": "Verify Profile",
       "providerId": "VERIFY_PROFILE",
-      "enabled": true,
+      "enabled": false,
       "defaultAction": false,
       "priority": 100,
       "config": {}

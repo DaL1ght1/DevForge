@@ -1,5 +1,6 @@
 package com.example.devforge.security;
 
+import jakarta.servlet.http.Cookie;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +16,9 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver;
+import org.springframework.security.oauth2.server.resource.web.DefaultBearerTokenResolver;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -38,9 +42,13 @@ public class SecurityConfig {
                         "/users/register",
                         "/auth/login",
                         "/auth/refresh",
-                        "/auth/logout")
+                        "/auth/logout",
+                        "/auth/oauth2/ticket",
+                        "/auth/oauth2/signup/pending",
+                        "/auth/oauth2/signup/complete")
                     .permitAll()
-                    .requestMatchers("/actuator/health/**")
+                    .requestMatchers(
+                        HttpMethod.GET, "/auth/oauth2/authorize/*", "/auth/oauth2/callback")
                     .permitAll()
                     .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
                     .permitAll()
@@ -48,7 +56,10 @@ public class SecurityConfig {
                     .authenticated())
         .oauth2ResourceServer(
             oauth2 ->
-                oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())));
+                oauth2
+                    .bearerTokenResolver(bearerTokenResolver())
+                    .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))
+        .addFilterBefore(new CsrfHeaderFilter(), BearerTokenAuthenticationFilter.class);
     return http.build();
   }
 
@@ -77,9 +88,24 @@ public class SecurityConfig {
 
     cfg.setAllowedOrigins(List.of(allowedOrigins));
     cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-    cfg.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+    cfg.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With"));
+    cfg.setAllowCredentials(true);
     var source = new UrlBasedCorsConfigurationSource();
     source.registerCorsConfiguration("/**", cfg);
     return source;
+  }
+
+  @Bean
+  BearerTokenResolver bearerTokenResolver() {
+    var header = new DefaultBearerTokenResolver();
+    return request -> {
+      String fromHeader = header.resolve(request);
+      if (fromHeader != null) return fromHeader;
+      if (request.getRequestURI().contains("/auth/") || request.getCookies() == null) return null;
+      for (Cookie c : request.getCookies()) {
+        if (AuthCookies.ACCESS.equals(c.getName())) return c.getValue();
+      }
+      return null;
+    };
   }
 }

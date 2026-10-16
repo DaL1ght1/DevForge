@@ -1,22 +1,19 @@
 package com.example.devforge.controller;
 
-import com.example.devforge.dto.AuthResponse;
-import com.example.devforge.dto.LoginRequest;
-import com.example.devforge.dto.RefreshTokenRequest;
+import com.example.devforge.dto.*;
+import com.example.devforge.exception.InvalidCredentialsException;
+import com.example.devforge.security.AuthCookies;
 import com.example.devforge.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import java.net.URI;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.ResponseStatus;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/auth")
@@ -25,14 +22,17 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
   private final AuthService authService;
+  private final AuthCookies cookies;
 
   @SecurityRequirements
   @Operation(
       summary = "Authenticate user",
       description = "Authenticates user against Keycloak and returns JWT tokens")
   @PostMapping("/login")
-  public AuthResponse login(@RequestBody @Valid LoginRequest request) {
-    return authService.login(request);
+  public SessionResponse login(@RequestBody @Valid LoginRequest request, HttpServletResponse res) {
+    AuthResponse a = authService.login(request);
+    cookies.write(res, a);
+    return SessionResponse.from(a);
   }
 
   @SecurityRequirements
@@ -40,8 +40,18 @@ public class AuthController {
       summary = "Refresh access token",
       description = "Exchanges a valid refresh token for a new access token")
   @PostMapping("/refresh")
-  public AuthResponse refresh(@RequestBody @Valid RefreshTokenRequest request) {
-    return authService.refresh(request);
+  public SessionResponse refresh(
+      @CookieValue(name = AuthCookies.REFRESH, required = false) String rt,
+      HttpServletResponse res) {
+    if (rt == null || rt.isBlank()) throw new InvalidCredentialsException("No session");
+    try {
+      AuthResponse a = authService.refresh(new RefreshTokenRequest(rt));
+      cookies.write(res, a);
+      return SessionResponse.from(a);
+    } catch (InvalidCredentialsException e) {
+      cookies.clear(res);
+      throw e;
+    }
   }
 
   @SecurityRequirements
@@ -51,9 +61,52 @@ public class AuthController {
   @PostMapping("/logout")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void logout(
-      @RequestBody(required = false) RefreshTokenRequest request,
-      @AuthenticationPrincipal Jwt jwt) {
-    String refreshToken = request != null ? request.refreshToken() : null;
-    authService.logout(refreshToken, jwt);
+      @CookieValue(name = AuthCookies.REFRESH, required = false) String rt,
+      HttpServletResponse res) {
+    authService.logout(rt, null);
+    cookies.clear(res);
+  }
+
+  @SecurityRequirements
+  @Operation(summary = "Start OAuth2 login with a social provider")
+  @GetMapping("/oauth2/authorize/{provider}")
+  public ResponseEntity<Void> authorize(@PathVariable String provider) {
+    String url = authService.buildAuthorizationUrl(provider);
+    return ResponseEntity.status(HttpStatus.FOUND).location(URI.create(url)).build();
+  }
+
+  @SecurityRequirements
+  @Operation(summary = "OAuth2 callback (called by Keycloak)")
+  @GetMapping("/oauth2/callback")
+  public ResponseEntity<Void> callback(
+      @RequestParam(required = false) String code,
+      @RequestParam(required = false) String state,
+      @RequestParam(required = false) String error,
+      @RequestParam(name = "error_description", required = false) String errorDescription) {
+    String redirect = authService.handleOAuth2Callback(code, state, error, errorDescription);
+    return ResponseEntity.status(HttpStatus.FOUND).location(URI.create(redirect)).build();
+  }
+
+  @PostMapping("/oauth2/ticket")
+  public SessionResponse exchangeTicket(
+      @RequestBody @Valid OAuth2TicketRequest request, HttpServletResponse res) {
+    AuthResponse a = authService.exchangeTicket(request);
+    cookies.write(res, a);
+    return SessionResponse.from(a);
+  }
+
+  @SecurityRequirements
+  @PostMapping("/oauth2/signup/pending")
+  public SignupPendingResponse pendingSignup(@RequestBody @Valid OAuth2TicketRequest request) {
+    return authService.getPendingSignup(request);
+  }
+
+  @SecurityRequirements
+  @PostMapping("/oauth2/signup/complete")
+  public SessionResponse completeSignup(
+      @RequestBody @Valid CompleteSignupRequest request, HttpServletResponse res) {
+    AuthResponse a = authService.completeSignup(request);
+    cookies.write(res, a);
+    return SessionResponse.from(a);
   }
 }

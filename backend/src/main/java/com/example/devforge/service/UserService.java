@@ -1,5 +1,6 @@
 package com.example.devforge.service;
 
+import com.example.devforge.dto.CompleteSignupRequest;
 import com.example.devforge.dto.UserCreationDto;
 import com.example.devforge.dto.UserResponseDto;
 import com.example.devforge.dto.UserUpdateDto;
@@ -20,4 +21,6 @@ public interface UserService {
   void deleteUser(UUID id);
 
   Page<UserResponseDto> listUsers(Pageable pageable);
+
+  UserResponseDto completeSocialSignup(UUID keycloakId, String email, CompleteSignupRequest dto);
 }
