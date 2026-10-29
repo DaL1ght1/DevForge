@@ -31,6 +31,9 @@ public class ProvisioningJob {
   @Builder.Default
   private int attempt = 0;
 
+  @Column(name = "installation_id")
+  private Long installationId;
+
   @Column(name = "error_message", length = 2000)
   private String errorMessage;
 

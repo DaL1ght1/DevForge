@@ -82,6 +82,8 @@ export interface AppServiceCreationDto {
   buildTool?: string;
   packageIdentifier?: string;
   port?: number;
+  /** Target workspace; omitted means the caller's personal workspace. */
+  workspaceId?: string;
 }
 
 export interface AppServiceResponse {
@@ -89,10 +91,12 @@ export interface AppServiceResponse {
   name: string;
   description?: string;
   repositoryUrl?: string;
+  repositoryOwner?: string;
   failureReason?: string;
   status: ServiceStatus;
   templateVersion: TemplateVersionResponse;
   owner: UserResponseDto;
+  workspace?: WorkspaceSummaryResponse;
   createdAt: string;
   updatedAt: string;
 }
@@ -147,4 +151,67 @@ export interface CompleteSignupRequest {
 export interface SessionResponse {
   user: UserResponseDto | null;
   expiresIn: number;
+}
+
+export type WorkspaceType = "PERSONAL" | "ORGANIZATION";
+
+export type WorkspaceRole = "OWNER" | "ADMIN" | "MEMBER";
+
+export interface WorkspaceSummaryResponse {
+  id: string;
+  name: string;
+  slug: string;
+  type: WorkspaceType;
+}
+
+/** A workspace as seen by the current user, including their role in it. */
+export interface WorkspaceResponse extends WorkspaceSummaryResponse {
+  role: WorkspaceRole;
+  createdAt: string;
+}
+
+export interface WorkspaceMemberResponse {
+  userId: string;
+  username: string;
+  email: string;
+  role: WorkspaceRole;
+  joinedAt: string;
+}
+
+export interface WorkspaceMemberAddDto {
+  usernameOrEmail: string;
+  role: Exclude<WorkspaceRole, "OWNER">;
+}
+
+export type GithubAccountType = "USER" | "ORGANIZATION";
+
+export type GithubInstallationStatus = "ACTIVE" | "SUSPENDED" | "REMOVED";
+
+export interface GithubAccountResponse {
+  connected: boolean;
+  login?: string;
+}
+
+export interface GithubInstallationResponse {
+  id: string;
+  installationId: number;
+  accountLogin: string;
+  accountType: GithubAccountType;
+  repositorySelection?: string;
+  status: GithubInstallationStatus;
+  workspaceId: string;
+  createdAt: string;
+}
+
+export interface GithubInstallationCandidateResponse {
+  installationId: number;
+  accountLogin: string;
+  accountType: GithubAccountType;
+  repositorySelection?: string;
+  linked: boolean;
+  available: boolean;
+}
+
+export interface GithubRedirectResponse {
+  url: string;
 }

@@ -69,6 +69,83 @@ public class GlobalExceptionHandler {
     return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
   }
 
+  @ExceptionHandler(ConflictException.class)
+  public ResponseEntity<ApiErrorResponse> handleConflict(
+      ConflictException ex, HttpServletRequest request) {
+
+    log.warn("Conflict at path [{}]: {}", request.getRequestURI(), ex.getMessage());
+
+    ApiErrorResponse error =
+        new ApiErrorResponse(
+            HttpStatus.CONFLICT.value(), "Conflict", ex.getMessage(), request.getRequestURI());
+
+    return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+  }
+
+  @ExceptionHandler(GithubNotConnectedException.class)
+  public ResponseEntity<ApiErrorResponse> handleGithubNotConnected(
+      GithubNotConnectedException ex, HttpServletRequest request) {
+
+    log.info("GitHub not connected at path [{}]", request.getRequestURI());
+
+    ApiErrorResponse error =
+        new ApiErrorResponse(
+            HttpStatus.CONFLICT.value(),
+            "GitHub Not Connected",
+            ex.getMessage(),
+            request.getRequestURI());
+
+    return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+  }
+
+  @ExceptionHandler(GithubReauthorizationRequiredException.class)
+  public ResponseEntity<ApiErrorResponse> handleGithubReauthorization(
+      GithubReauthorizationRequiredException ex, HttpServletRequest request) {
+
+    log.info("GitHub reauthorization required at path [{}]", request.getRequestURI());
+
+    ApiErrorResponse error =
+        new ApiErrorResponse(
+            HttpStatus.CONFLICT.value(),
+            "GitHub Reauthorization Required",
+            ex.getMessage(),
+            request.getRequestURI());
+
+    return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+  }
+
+  @ExceptionHandler(GithubIntegrationException.class)
+  public ResponseEntity<ApiErrorResponse> handleGithubIntegration(
+      GithubIntegrationException ex, HttpServletRequest request) {
+
+    log.error("GitHub integration error at path [{}]", request.getRequestURI(), ex);
+
+    ApiErrorResponse error =
+        new ApiErrorResponse(
+            HttpStatus.BAD_GATEWAY.value(),
+            "GitHub Unavailable",
+            "GitHub integration is unavailable",
+            request.getRequestURI());
+
+    return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(error);
+  }
+
+  @ExceptionHandler(InvalidWebhookSignatureException.class)
+  public ResponseEntity<ApiErrorResponse> handleInvalidWebhookSignature(
+      InvalidWebhookSignatureException ex, HttpServletRequest request) {
+
+    log.warn("Rejected webhook at path [{}]: {}", request.getRequestURI(), ex.getMessage());
+
+    ApiErrorResponse error =
+        new ApiErrorResponse(
+            HttpStatus.UNAUTHORIZED.value(),
+            "Unauthorized",
+            "Invalid webhook signature",
+            request.getRequestURI());
+
+    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+  }
+
   @ExceptionHandler(RegistrationRejectedException.class)
   public ResponseEntity<ApiErrorResponse> handleRejected(
       RegistrationRejectedException ex, HttpServletRequest request) {

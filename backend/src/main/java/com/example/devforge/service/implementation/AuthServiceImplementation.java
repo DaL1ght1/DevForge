@@ -13,7 +13,6 @@ import com.example.devforge.exception.UserAlreadyExistsException;
 import com.example.devforge.mapper.UserMapper;
 import com.example.devforge.repository.UserRepository;
 import com.example.devforge.service.AuthService;
-import com.example.devforge.service.OAuth2TicketStore;
 import com.example.devforge.service.UserService;
 import java.net.URLEncoder;
 import java.security.MessageDigest;

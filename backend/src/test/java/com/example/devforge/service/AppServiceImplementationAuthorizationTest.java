@@ -1,49 +1,155 @@
 package com.example.devforge.service;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import com.example.devforge.dto.AppServiceCreationDto;
 import com.example.devforge.entity.AppService;
+import com.example.devforge.entity.AppTemplate;
+import com.example.devforge.entity.TemplateVersion;
 import com.example.devforge.entity.User;
+import com.example.devforge.entity.Workspace;
+import com.example.devforge.entity.WorkspaceMember;
+import com.example.devforge.entity.WorkspaceRole;
+import com.example.devforge.entity.WorkspaceType;
 import com.example.devforge.exception.AppServiceNotFoundException;
+import com.example.devforge.exception.ConflictException;
 import com.example.devforge.exception.UnauthorizedAccessException;
+import com.example.devforge.exception.WorkspaceNotFoundException;
 import com.example.devforge.repository.AppServiceRepository;
+import com.example.devforge.repository.GithubInstallationRepository;
 import com.example.devforge.repository.ProvisioningJobRepository;
+import com.example.devforge.repository.TemplateVersionRepository;
+import com.example.devforge.repository.UserRepository;
 import com.example.devforge.service.implementation.AppServiceImplementation;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Pageable;
 
 class AppServiceImplementationAuthorizationTest {
 
   private final AppServiceRepository repository = mock(AppServiceRepository.class);
+  private final UserRepository userRepository = mock(UserRepository.class);
+  private final TemplateVersionRepository templateVersionRepository =
+      mock(TemplateVersionRepository.class);
+  private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
+  private final WorkspaceService workspaceService = mock(WorkspaceService.class);
   private final AppServiceImplementation service =
       new AppServiceImplementation(
-          repository, null, null, null, null, null, mock(ProvisioningJobRepository.class));
+          repository,
+          userRepository,
+          templateVersionRepository,
+          null,
+          null,
+          eventPublisher,
+          mock(ProvisioningJobRepository.class),
+          workspaceService,
+          mock(GithubInstallationRepository.class));
+
+  private final UUID userA = UUID.randomUUID();
+  private final UUID orgId = UUID.randomUUID();
+  private final Workspace org =
+      Workspace.builder().id(orgId).type(WorkspaceType.ORGANIZATION).name("Acme").build();
 
   @Test
-  void userCannotReadAnotherUsersService() {
+  void userCannotReadServiceOutsideTheirWorkspaces() {
     UUID serviceId = UUID.randomUUID();
-    UUID userA = UUID.randomUUID();
-    when(repository.findByIdAndOwnerKeycloakId(serviceId, userA)).thenReturn(Optional.empty());
+    when(repository.findByIdVisibleToMember(serviceId, userA)).thenReturn(Optional.empty());
 
     assertThatThrownBy(() -> service.getService(serviceId, userA, false))
         .isInstanceOf(AppServiceNotFoundException.class);
-    verify(repository).findByIdAndOwnerKeycloakId(serviceId, userA);
+    verify(repository).findByIdVisibleToMember(serviceId, userA);
     verify(repository, never()).findById(serviceId);
   }
 
   @Test
-  void userCannotDeleteAnotherUsersService() {
+  void nonMemberCannotDeleteServiceAndLearnsNothing() {
     UUID serviceId = UUID.randomUUID();
-    UUID userA = UUID.randomUUID();
-    UUID userB = UUID.randomUUID();
-    AppService ownedByB =
-        AppService.builder().id(serviceId).owner(User.builder().keycloakId(userB).build()).build();
-    when(repository.findById(serviceId)).thenReturn(Optional.of(ownedByB));
+    when(repository.findById(serviceId))
+        .thenReturn(Optional.of(AppService.builder().id(serviceId).workspace(org).build()));
+    when(workspaceService.requireRole(orgId, userA, WorkspaceRole.ADMIN))
+        .thenThrow(new WorkspaceNotFoundException(orgId));
+
+    assertThatThrownBy(() -> service.deleteService(userA, serviceId))
+        .isInstanceOf(AppServiceNotFoundException.class);
+    verify(repository, never()).delete(any(AppService.class));
+  }
+
+  @Test
+  void plainMemberCannotDeleteOrganizationService() {
+    UUID serviceId = UUID.randomUUID();
+    when(repository.findById(serviceId))
+        .thenReturn(Optional.of(AppService.builder().id(serviceId).workspace(org).build()));
+    when(workspaceService.requireRole(orgId, userA, WorkspaceRole.ADMIN))
+        .thenThrow(new UnauthorizedAccessException("requires ADMIN"));
 
     assertThatThrownBy(() -> service.deleteService(userA, serviceId))
         .isInstanceOf(UnauthorizedAccessException.class);
     verify(repository, never()).delete(any(AppService.class));
+  }
+
+  @Test
+  void plainMemberCannotCreateInOrganization() {
+    stubTemplateAndUser();
+    when(workspaceService.requireRole(orgId, userA, WorkspaceRole.ADMIN))
+        .thenThrow(new UnauthorizedAccessException("requires ADMIN"));
+
+    assertThatThrownBy(() -> service.createService(userA, orgDto("billing")))
+        .isInstanceOf(UnauthorizedAccessException.class);
+    verify(repository, never()).save(any());
+    verifyNoInteractions(eventPublisher);
+  }
+
+  @Test
+  void nonMemberCannotCreateInOrganization() {
+    stubTemplateAndUser();
+    when(workspaceService.requireRole(orgId, userA, WorkspaceRole.ADMIN))
+        .thenThrow(new WorkspaceNotFoundException(orgId));
+
+    assertThatThrownBy(() -> service.createService(userA, orgDto("billing")))
+        .isInstanceOf(WorkspaceNotFoundException.class);
+    verify(repository, never()).save(any());
+    verifyNoInteractions(eventPublisher);
+  }
+
+  @Test
+  void duplicateNameInSameWorkspaceIsRejected() {
+    stubTemplateAndUser();
+    when(workspaceService.requireRole(orgId, userA, WorkspaceRole.ADMIN))
+        .thenReturn(WorkspaceMember.builder().workspace(org).role(WorkspaceRole.ADMIN).build());
+    when(repository.existsByWorkspaceIdAndName(orgId, "billing")).thenReturn(true);
+
+    assertThatThrownBy(() -> service.createService(userA, orgDto("billing")))
+        .isInstanceOf(ConflictException.class);
+    verify(repository, never()).save(any());
+  }
+
+  @Test
+  void listingAnotherWorkspaceRequiresMembership() {
+    when(workspaceService.requireRole(orgId, userA, WorkspaceRole.MEMBER))
+        .thenThrow(new WorkspaceNotFoundException(orgId));
+
+    assertThatThrownBy(() -> service.listServices(userA, false, orgId, 0, 10))
+        .isInstanceOf(WorkspaceNotFoundException.class);
+    verify(repository, never()).findAllByWorkspaceId(any(), any(Pageable.class));
+  }
+
+  private AppServiceCreationDto orgDto(String name) {
+    return new AppServiceCreationDto(name, null, UUID.randomUUID(), "NONE", orgId);
+  }
+
+  private void stubTemplateAndUser() {
+    TemplateVersion version =
+        TemplateVersion.builder()
+            .template(AppTemplate.builder().name("Spring").stableKey("spring").build())
+            .version("1.0.0")
+            .manifest("variables: []")
+            .build();
+    when(templateVersionRepository.findById(any())).thenReturn(Optional.of(version));
+    when(userRepository.findByKeycloakId(userA))
+        .thenReturn(Optional.of(User.builder().id(UUID.randomUUID()).keycloakId(userA).build()));
   }
 }

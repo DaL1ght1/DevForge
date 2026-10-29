@@ -11,6 +11,10 @@ import com.example.devforge.dto.AppServiceCreationDto;
 import com.example.devforge.entity.AppService;
 import com.example.devforge.entity.AppTemplate;
 import com.example.devforge.entity.BuildTool;
+import com.example.devforge.entity.GithubAccountType;
+import com.example.devforge.entity.GithubInstallation;
+import com.example.devforge.entity.ProvisioningJob;
+import com.example.devforge.entity.ProvisioningStatus;
 import com.example.devforge.entity.ServiceStatus;
 import com.example.devforge.entity.TemplateFramework;
 import com.example.devforge.entity.TemplateLanguage;
@@ -18,6 +22,7 @@ import com.example.devforge.entity.TemplateVersion;
 import com.example.devforge.entity.User;
 import com.example.devforge.repository.AppServiceRepository;
 import com.example.devforge.repository.AppTemplateRepository;
+import com.example.devforge.repository.GithubInstallationRepository;
 import com.example.devforge.repository.ProvisioningJobRepository;
 import com.example.devforge.repository.TemplateVersionRepository;
 import com.example.devforge.repository.UserRepository;
@@ -86,9 +91,12 @@ class KafkaServiceImplementationIntegrationTest {
   @Autowired private UserRepository userRepository;
   @Autowired private AppTemplateRepository appTemplateRepository;
   @Autowired private TemplateVersionRepository templateVersionRepository;
+  @Autowired private WorkspaceService workspaceService;
+  @Autowired private GithubInstallationRepository githubInstallationRepository;
 
   @BeforeEach
   void cleanDatabase() {
+    githubInstallationRepository.deleteAll();
     provisioningJobRepository.deleteAll();
     appServiceRepository.deleteAll();
     templateVersionRepository.deleteAll();
@@ -118,7 +126,14 @@ class KafkaServiceImplementationIntegrationTest {
 
     send(
         new ProvisionerClient.ProvisionResponse(
-            service.getId(), service.getName(), null, null, "FAILED", "GitHub unavailable"));
+            null,
+            service.getId(),
+            service.getName(),
+            null,
+            null,
+            null,
+            "FAILED",
+            "GitHub unavailable"));
 
     await()
         .atMost(Duration.ofSeconds(15))
@@ -150,8 +165,65 @@ class KafkaServiceImplementationIntegrationTest {
   }
 
   @Test
+  void responseForAnotherServicesJobIsIgnored() {
+    AppService target = saveService();
+    AppService other = saveService();
+    ProvisioningJob otherJob = saveJob(other);
+
+    send(
+        new ProvisionerClient.ProvisionResponse(
+            otherJob.getId(),
+            target.getId(),
+            target.getName(),
+            null,
+            "https://github.com/example/hijack",
+            1L,
+            "COMPLETED",
+            null));
+    send(completed(other, otherJob, "https://github.com/example/other"));
+
+    await()
+        .atMost(Duration.ofSeconds(15))
+        .untilAsserted(
+            () ->
+                assertThat(appServiceRepository.findById(other.getId()).orElseThrow().getStatus())
+                    .isEqualTo(ServiceStatus.PUSHED));
+    AppService untouched = appServiceRepository.findById(target.getId()).orElseThrow();
+    assertThat(untouched.getStatus()).isEqualTo(ServiceStatus.CREATING);
+    assertThat(untouched.getRepositoryUrl()).isNull();
+  }
+
+  @Test
+  void lateResponseForFinishedJobDoesNotOverwriteResult() {
+    AppService service = saveService();
+    ProvisioningJob job = saveJob(service);
+    send(completed(service, job, "https://github.com/example/demo"));
+    send(
+        new ProvisionerClient.ProvisionResponse(
+            job.getId(), service.getId(), service.getName(), null, null, null, "FAILED", "late"));
+
+    await()
+        .atMost(Duration.ofSeconds(20))
+        .during(Duration.ofSeconds(2))
+        .untilAsserted(
+            () -> {
+              AppService persisted = appServiceRepository.findById(service.getId()).orElseThrow();
+              assertThat(persisted.getStatus()).isEqualTo(ServiceStatus.PUSHED);
+              assertThat(persisted.getRepositoryId()).isEqualTo(42L);
+            });
+  }
+
+  @Test
   void provisionRequestIsPublishedOnlyAfterCommit() {
     User user = saveUser();
+    githubInstallationRepository.save(
+        GithubInstallation.builder()
+            .installationId(Math.abs(UUID.randomUUID().getMostSignificantBits()))
+            .accountId(1L)
+            .accountLogin("example")
+            .accountType(GithubAccountType.USER)
+            .workspace(workspaceService.getOrCreatePersonal(user))
+            .build());
     TemplateVersion version = saveTemplateVersion();
     AppServiceCreationDto dto =
         new AppServiceCreationDto(
@@ -182,7 +254,29 @@ class KafkaServiceImplementationIntegrationTest {
 
   private ProvisionerClient.ProvisionResponse completed(AppService service, String repositoryUrl) {
     return new ProvisionerClient.ProvisionResponse(
-        service.getId(), service.getName(), null, repositoryUrl, "COMPLETED", null);
+        null, service.getId(), service.getName(), null, repositoryUrl, null, "COMPLETED", null);
+  }
+
+  private ProvisionerClient.ProvisionResponse completed(
+      AppService service, ProvisioningJob job, String repositoryUrl) {
+    return new ProvisionerClient.ProvisionResponse(
+        job.getId(),
+        service.getId(),
+        service.getName(),
+        null,
+        repositoryUrl,
+        42L,
+        "COMPLETED",
+        null);
+  }
+
+  private ProvisioningJob saveJob(AppService service) {
+    return provisioningJobRepository.save(
+        ProvisioningJob.builder()
+            .service(service)
+            .status(ProvisioningStatus.GENERATING)
+            .installationId(1L)
+            .build());
   }
 
   private KafkaConsumer<String, String> requestConsumer() {
@@ -248,10 +342,12 @@ class KafkaServiceImplementationIntegrationTest {
   }
 
   private AppService saveService() {
+    User owner = saveUser();
     return appServiceRepository.save(
         AppService.builder()
             .name("service-" + UUID.randomUUID().toString().substring(0, 8))
-            .owner(saveUser())
+            .owner(owner)
+            .workspace(workspaceService.getOrCreatePersonal(owner))
             .templateVersion(saveTemplateVersion())
             .status(ServiceStatus.CREATING)
             .build());

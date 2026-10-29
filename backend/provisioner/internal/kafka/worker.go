@@ -3,12 +3,12 @@ package kafka
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
 	"time"
 
-	"devforge/provisioner/internal/generator"
 	"devforge/provisioner/internal/git"
 	"devforge/provisioner/internal/github"
 	"devforge/provisioner/internal/model"
@@ -16,25 +16,65 @@ import (
 	kafka "github.com/segmentio/kafka-go"
 )
 
-type ProvisionWorker struct {
-	reader          *kafka.Reader
-	writer          *kafka.Writer
-	gen             *generator.ProjectGenerator
-	ghClient        *github.Client
-	gitPusher       *git.Pusher
-	outputWorkspace string
+type ProjectGenerator interface {
+	Generate(req model.GenerationRequest, outputDir string) (string, error)
 }
 
-func NewProvisionWorker(
-	brokers []string,
-	reqTopic string,
-	respTopic string,
-	groupID string,
-	gen *generator.ProjectGenerator,
-	ghClient *github.Client,
-	gitPusher *git.Pusher,
-	workspace string,
-) *ProvisionWorker {
+type RepoClient interface {
+	CreateRepository(ctx context.Context, owner, ownerType, name, description string, private bool) (*github.Repository, error)
+	DeleteRepository(ctx context.Context, owner, name string, expectedID int64) error
+}
+
+type ClientFactory interface {
+	ForInstallation(installationID int64) (RepoClient, git.TokenSource, error)
+}
+
+type UserTokenSource interface {
+	UserToken(ctx context.Context, jobID string) (string, error)
+}
+
+type RepoPusher interface {
+	PushDirectory(ctx context.Context, projectDir, remoteURL string, tokens git.TokenSource) error
+}
+
+type Dependencies struct {
+	Generator   ProjectGenerator
+	Clients     ClientFactory
+	TokenClient func(token string) (RepoClient, error)
+	UserTokens  UserTokenSource
+	Pusher      RepoPusher
+	Workspace   string
+}
+
+type ProvisionWorker struct {
+	reader *kafka.Reader
+	writer *kafka.Writer
+	deps   Dependencies
+}
+
+func InstallationClients(f *github.ClientFactory) ClientFactory {
+	return installationClients{f}
+}
+
+type installationClients struct{ f *github.ClientFactory }
+
+func (c installationClients) ForInstallation(id int64) (RepoClient, git.TokenSource, error) {
+	client, tokens, err := c.f.ForInstallation(id)
+	if err != nil {
+		return nil, nil, err
+	}
+	return client, tokens, nil
+}
+
+func UserTokenClients(token string) (RepoClient, error) {
+	client, err := github.NewTokenClient(token)
+	if err != nil {
+		return nil, err
+	}
+	return client, nil
+}
+
+func NewProvisionWorker(brokers []string, reqTopic, respTopic, groupID string, deps Dependencies) *ProvisionWorker {
 	ensureTopics(brokers, reqTopic, respTopic)
 
 	reader := kafka.NewReader(kafka.ReaderConfig{
@@ -52,14 +92,7 @@ func NewProvisionWorker(
 		Balancer: &kafka.LeastBytes{},
 	}
 
-	return &ProvisionWorker{
-		reader:          reader,
-		writer:          writer,
-		gen:             gen,
-		ghClient:        ghClient,
-		gitPusher:       gitPusher,
-		outputWorkspace: workspace,
-	}
+	return &ProvisionWorker{reader: reader, writer: writer, deps: deps}
 }
 
 func ensureTopics(brokers []string, topics ...string) {
@@ -130,7 +163,8 @@ func (w *ProvisionWorker) Start(ctx context.Context) {
 				continue
 			}
 
-			log.Printf("[Kafka Worker] Processing service [%s] (ID: %s)", req.ServiceName, req.ServiceID)
+			log.Printf("[Kafka Worker] Processing service [%s] (ID: %s, job: %s) for %s %q (installation %d)",
+				req.ServiceName, req.ServiceID, req.JobID, req.OwnerType, req.OwnerLogin, req.InstallationID)
 			resp := w.executeProvision(ctx, req)
 			if resp.Status == "FAILED" {
 				log.Printf("[Kafka Worker] Provisioning failed for service [%s] (ID: %s): %s",
@@ -146,14 +180,35 @@ func (w *ProvisionWorker) Start(ctx context.Context) {
 	}
 }
 
+func validateRequest(req model.ProvisionRequest) error {
+	if req.ContractVersion != model.ContractVersion {
+		return fmt.Errorf("unsupported contract version %d (expected %d)", req.ContractVersion, model.ContractVersion)
+	}
+	if req.JobID == "" || req.ServiceName == "" {
+		return errors.New("request is missing jobId or serviceName")
+	}
+	if req.InstallationID <= 0 || req.OwnerLogin == "" {
+		return errors.New("request is missing its GitHub destination")
+	}
+	if req.OwnerType != model.OwnerTypeUser && req.OwnerType != model.OwnerTypeOrganization {
+		return fmt.Errorf("unsupported owner type %q", req.OwnerType)
+	}
+	return nil
+}
+
 func (w *ProvisionWorker) executeProvision(ctx context.Context, req model.ProvisionRequest) model.ProvisionResponse {
 	resp := model.ProvisionResponse{
+		JobID:       req.JobID,
 		ServiceID:   req.ServiceID,
 		ServiceName: req.ServiceName,
 		Status:      "FAILED",
 	}
+	if err := validateRequest(req); err != nil {
+		resp.ErrorMessage = fmt.Sprintf("invalid provisioning request: %v", err)
+		return resp
+	}
 
-	workDir, err := os.MkdirTemp(w.outputWorkspace, "provision-*")
+	workDir, err := os.MkdirTemp(w.deps.Workspace, "provision-*")
 	if err != nil {
 		resp.ErrorMessage = fmt.Sprintf("workDir creation failed: %v", err)
 		return resp
@@ -175,20 +230,40 @@ func (w *ProvisionWorker) executeProvision(ctx context.Context, req model.Provis
 		DatabaseType:    req.DatabaseType,
 	}
 
-	outPath, err := w.gen.Generate(genReq, workDir)
+	outPath, err := w.deps.Generator.Generate(genReq, workDir)
 	if err != nil {
 		resp.ErrorMessage = fmt.Sprintf("generator failed: %v", err)
 		return resp
 	}
 
-	cloneURL, htmlURL, err := w.ghClient.CreateRepository(ctx, req.ServiceName, req.Description)
+	client, tokens, err := w.deps.Clients.ForInstallation(req.InstallationID)
 	if err != nil {
+		resp.ErrorMessage = fmt.Sprintf("github auth failed: %v", err)
+		return resp
+	}
+
+	private := req.Visibility != "public"
+	repo, err := client.CreateRepository(ctx, req.OwnerLogin, req.OwnerType, req.ServiceName, req.Description, private)
+	if errors.Is(err, github.ErrNotPermitted) && req.OwnerType == model.OwnerTypeUser && w.deps.UserTokens != nil {
+		log.Printf("[Kafka Worker] Installation token cannot create repos for user %q; using the owner's user token", req.OwnerLogin)
+		client, tokens, err = w.userTokenClient(ctx, req.JobID)
+		if err != nil {
+			resp.ErrorMessage = fmt.Sprintf("github user authorization failed: %v", err)
+			return resp
+		}
+		repo, err = client.CreateRepository(ctx, req.OwnerLogin, req.OwnerType, req.ServiceName, req.Description, private)
+	}
+	if err != nil {
+		if errors.Is(err, github.ErrRepositoryExists) {
+			resp.ErrorMessage = fmt.Sprintf("a repository named %q already exists in %s", req.ServiceName, req.OwnerLogin)
+			return resp
+		}
 		resp.ErrorMessage = fmt.Sprintf("github repo creation failed: %v", err)
 		return resp
 	}
 
-	if err := w.gitPusher.PushDirectory(ctx, outPath, cloneURL); err != nil {
-		if deleteErr := w.ghClient.DeleteRepository(ctx, req.ServiceName); deleteErr != nil {
+	if err := w.deps.Pusher.PushDirectory(ctx, outPath, repo.CloneURL, tokens); err != nil {
+		if deleteErr := client.DeleteRepository(ctx, req.OwnerLogin, req.ServiceName, repo.ID); deleteErr != nil {
 			log.Printf("[Kafka Worker] Failed to clean up repository [%s]: %v", req.ServiceName, deleteErr)
 		}
 		resp.ErrorMessage = fmt.Sprintf("git push failed: %v", err)
@@ -196,8 +271,21 @@ func (w *ProvisionWorker) executeProvision(ctx context.Context, req model.Provis
 	}
 
 	resp.Status = "COMPLETED"
-	resp.RepositoryURL = htmlURL
+	resp.RepositoryURL = repo.HTMLURL
+	resp.RepositoryID = repo.ID
 	return resp
+}
+
+func (w *ProvisionWorker) userTokenClient(ctx context.Context, jobID string) (RepoClient, git.TokenSource, error) {
+	token, err := w.deps.UserTokens.UserToken(ctx, jobID)
+	if err != nil {
+		return nil, nil, err
+	}
+	client, err := w.deps.TokenClient(token)
+	if err != nil {
+		return nil, nil, err
+	}
+	return client, git.StaticToken(token), nil
 }
 
 func (w *ProvisionWorker) publishResponse(ctx context.Context, resp model.ProvisionResponse) error {

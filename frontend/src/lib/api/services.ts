@@ -2,9 +2,16 @@ import { api } from "./client";
 import { AppServiceCreationDto, AppServiceResponse, Page } from "@/types/api";
 
 export const servicesApi = {
-  list(page = 0, size = 10): Promise<Page<AppServiceResponse>> {
+  list(
+    page = 0,
+    size = 10,
+    workspaceId?: string,
+  ): Promise<Page<AppServiceResponse>> {
+    const workspace = workspaceId
+      ? `&workspaceId=${encodeURIComponent(workspaceId)}`
+      : "";
     return api.get<Page<AppServiceResponse>>(
-      `/services?page=${page}&size=${size}`,
+      `/services?page=${page}&size=${size}${workspace}`,
     );
   },
 

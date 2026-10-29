@@ -1,4 +1,4 @@
-package com.example.devforge.service;
+package com.example.devforge.service.implementation;
 
 import com.example.devforge.dto.AuthResponse;
 import java.security.SecureRandom;

@@ -92,3 +92,13 @@ devforge:
   templates:
     root: templates
 
+  github:
+    app-slug: ${GITHUB_APP_SLUG:}
+    client-id: ${GITHUB_APP_CLIENT_ID:}
+    client-secret: ${GITHUB_APP_CLIENT_SECRET:}
+    webhook-secret: ${GITHUB_WEBHOOK_SECRET:}
+    token-encryption-key: ${GITHUB_TOKEN_ENCRYPTION_KEY:}
+
+  internal:
+    api-token: ${INTERNAL_API_TOKEN:}
+

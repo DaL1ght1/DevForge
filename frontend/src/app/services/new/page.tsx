@@ -29,6 +29,10 @@ import {
   CardDescription,
 } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { DestinationNotice } from "@/components/workspace/DestinationNotice";
+import { useWorkspace } from "@/context/WorkspaceContext";
+import { ApiClientError } from "@/lib/api/client";
+import { GITHUB_NOT_CONNECTED, githubApi } from "@/lib/api/github";
 import { servicesApi } from "@/lib/api/services";
 import { templatesApi } from "@/lib/api/templates";
 import { AppTemplateResponse } from "@/types/api";
@@ -60,6 +64,42 @@ export default function NewServicePage() {
   const [databaseType, setDatabaseType] = useState("");
   const [isProvisioning, setIsProvisioning] = useState(false);
   const [provisionError, setProvisionError] = useState<string | null>(null);
+  const [githubNotConnected, setGithubNotConnected] = useState(false);
+  const { activeWorkspace } = useWorkspace();
+  const [destination, setDestination] = useState<{
+    workspaceId: string;
+    login: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!activeWorkspace) return;
+    let cancelled = false;
+    githubApi
+      .listLinked(activeWorkspace.id)
+      .then((installations) => {
+        if (cancelled) return;
+        const active = installations.find((i) => i.status === "ACTIVE");
+        setDestination({
+          workspaceId: activeWorkspace.id,
+          login: active?.accountLogin ?? null,
+        });
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setDestination({ workspaceId: activeWorkspace.id, login: null });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeWorkspace]);
+
+  const destinationLoading =
+    !!activeWorkspace && destination?.workspaceId !== activeWorkspace.id;
+  const destinationLogin = destinationLoading
+    ? null
+    : (destination?.login ?? null);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -279,6 +319,7 @@ export default function NewServicePage() {
     }
 
     setProvisionError(null);
+    setGithubNotConnected(false);
     setIsProvisioning(true);
 
     try {
@@ -291,6 +332,7 @@ export default function NewServicePage() {
         templateVersionId: versionIdToSend,
         databaseType:
           databaseType || matchedTemplate.databaseType || "POSTGRESQL",
+        workspaceId: activeWorkspace?.id,
       });
 
       if (created?.id) {
@@ -302,6 +344,9 @@ export default function NewServicePage() {
       const message =
         err instanceof Error ? err.message : "Failed to provision service";
       setProvisionError(message);
+      setGithubNotConnected(
+        err instanceof ApiClientError && err.error === GITHUB_NOT_CONNECTED,
+      );
     } finally {
       setIsProvisioning(false);
     }
@@ -402,6 +447,12 @@ export default function NewServicePage() {
               </Button>
             </Link>
           </div>
+          <DestinationNotice
+            workspace={activeWorkspace}
+            githubLogin={destinationLogin}
+            loading={destinationLoading}
+            serviceName={serviceName}
+          />
           <StepIndicator
             steps={steps}
             currentStep={currentStep}
@@ -703,6 +754,16 @@ export default function NewServicePage() {
                 </div>
 
                 <ErrorAlert error={provisionError} />
+                {githubNotConnected && activeWorkspace && (
+                  <p className="text-xs text-amber-200">
+                    <Link
+                      href={`/workspaces/${activeWorkspace.id}`}
+                      className="font-semibold underline underline-offset-2"
+                    >
+                      Open workspace settings to connect GitHub
+                    </Link>
+                  </p>
+                )}
 
                 <Card className="border-zinc-800 bg-zinc-900/60">
                   <CardHeader className="pb-3 border-b border-zinc-800/80">
@@ -723,6 +784,17 @@ export default function NewServicePage() {
                         </span>
                         <span className="font-mono font-semibold text-zinc-100 text-sm">
                           {serviceName}
+                        </span>
+                      </div>
+
+                      <div className="p-3 rounded-lg border border-zinc-800 bg-zinc-950/60">
+                        <span className="text-[10px] uppercase tracking-wider text-zinc-500 block mb-1">
+                          GitHub Destination
+                        </span>
+                        <span className="font-mono text-zinc-100 truncate block">
+                          {destinationLogin
+                            ? `${destinationLogin}/${serviceName}`
+                            : "Not connected"}
                         </span>
                       </div>
 

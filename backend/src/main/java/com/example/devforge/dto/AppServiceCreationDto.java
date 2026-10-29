@@ -20,5 +20,12 @@ public record AppServiceCreationDto(
         String name,
     @Size(max = 500) String description,
     @NotNull UUID templateVersionId,
-    @NotBlank @Length(max = 20) String databaseType)
-    implements Serializable {}
+    @NotBlank @Length(max = 20) String databaseType,
+    UUID workspaceId)
+    implements Serializable {
+
+  public AppServiceCreationDto(
+      String name, String description, UUID templateVersionId, String databaseType) {
+    this(name, description, templateVersionId, databaseType, null);
+  }
+}

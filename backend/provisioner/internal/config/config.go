@@ -12,17 +12,17 @@ import (
 )
 
 type Config struct {
-	Port                 string
-	TemplatesDir         string
-	WorkspaceDir         string
-	GithubAppID          int64
-	GithubInstallationID int64
-	GithubAppPrivateKey  []byte
-	GithubOwner          string
-	KafkaBrokers         []string
-	RequestTopic         string
-	ResponseTopic        string
-	KafkaGroupID         string
+	Port                string
+	TemplatesDir        string
+	WorkspaceDir        string
+	GithubAppID         int64
+	GithubAppPrivateKey []byte
+	KafkaBrokers        []string
+	RequestTopic        string
+	ResponseTopic       string
+	KafkaGroupID        string
+	BackendInternalURL  string
+	InternalAPIToken    string
 }
 
 func loadDotEnv() (string, bool) {
@@ -86,19 +86,15 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 
-	ghInstallationID, err := requireInt64Env("GITHUB_APP_INSTALLATION_ID")
-	if err != nil {
-		return nil, err
-	}
-
 	ghPrivateKey, err := loadGithubPrivateKey()
 	if err != nil {
 		return nil, err
 	}
 
-	ghOwner := os.Getenv("GITHUB_OWNER")
-	if ghOwner == "" {
-		return nil, fmt.Errorf("GITHUB_OWNER environment variable is required")
+	for _, legacy := range []string{"GITHUB_APP_INSTALLATION_ID", "GITHUB_OWNER"} {
+		if os.Getenv(legacy) != "" {
+			log.Printf("[Config] %s is deprecated and ignored: each job names its own installation", legacy)
+		}
 	}
 
 	templatesDir := getEnvOrDefault("TEMPLATES_DIR", "../templates")
@@ -121,17 +117,17 @@ func Load() (*Config, error) {
 	kafkaGroupID := getEnvOrDefault("GROUP_ID", "devforge-go-provisioner")
 
 	return &Config{
-		Port:                 port,
-		TemplatesDir:         templatesDir,
-		WorkspaceDir:         workspaceDir,
-		GithubAppID:          ghAppID,
-		GithubInstallationID: ghInstallationID,
-		GithubAppPrivateKey:  ghPrivateKey,
-		GithubOwner:          ghOwner,
-		KafkaBrokers:         brokers,
-		RequestTopic:         reqTopic,
-		ResponseTopic:        respTopic,
-		KafkaGroupID:         kafkaGroupID,
+		Port:                port,
+		TemplatesDir:        templatesDir,
+		WorkspaceDir:        workspaceDir,
+		GithubAppID:         ghAppID,
+		GithubAppPrivateKey: ghPrivateKey,
+		KafkaBrokers:        brokers,
+		RequestTopic:        reqTopic,
+		ResponseTopic:       respTopic,
+		KafkaGroupID:        kafkaGroupID,
+		BackendInternalURL:  getEnvOrDefault("BACKEND_INTERNAL_URL", "http://backend:8080/api/v1"),
+		InternalAPIToken:    os.Getenv("INTERNAL_API_TOKEN"),
 	}, nil
 }
 

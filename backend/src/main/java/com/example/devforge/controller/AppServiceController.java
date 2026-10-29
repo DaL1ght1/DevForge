@@ -34,11 +34,12 @@ public class AppServiceController {
   public Page<AppServiceResponse> getAllAppServices(
       @AuthenticationPrincipal Jwt jwt,
       Authentication authentication,
+      @RequestParam(required = false) UUID workspaceId,
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "10") int size) {
     UUID keycloakId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
     return appServiceService
-        .listServices(keycloakId, isAdmin(authentication), page, size)
+        .listServices(keycloakId, isAdmin(authentication), workspaceId, page, size)
         .map(appServiceMapper::toResponse);
   }
 
@@ -57,6 +58,6 @@ public class AppServiceController {
 
   private boolean isAdmin(Authentication authentication) {
     return authentication.getAuthorities().stream()
-        .anyMatch(authority -> authority.getAuthority().equals("ROLE_ADMIN"));
+        .anyMatch(authority -> Objects.equals(authority.getAuthority(), "ROLE_ADMIN"));
   }
 }

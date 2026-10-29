@@ -321,6 +321,27 @@ export default function ServiceDetailPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-5 space-y-3 text-xs">
+                {service.workspace && (
+                  <div className="p-3 rounded-lg border border-zinc-800 bg-zinc-950/60 flex items-center justify-between">
+                    <span className="text-zinc-400">Workspace</span>
+                    <Link
+                      href={`/workspaces/${service.workspace.id}`}
+                      className="font-mono text-zinc-200 hover:text-sky-300"
+                    >
+                      {service.workspace.name}
+                    </Link>
+                  </div>
+                )}
+
+                {service.repositoryOwner && (
+                  <div className="p-3 rounded-lg border border-zinc-800 bg-zinc-950/60 flex items-center justify-between">
+                    <span className="text-zinc-400">GitHub Owner</span>
+                    <span className="font-mono text-zinc-200">
+                      {service.repositoryOwner}
+                    </span>
+                  </div>
+                )}
+
                 <div className="p-3 rounded-lg border border-zinc-800 bg-zinc-950/60 flex items-center justify-between">
                   <span className="text-zinc-400">Repository</span>
                   <span className="font-mono text-zinc-200">

@@ -16,15 +16,17 @@ type TokenSource interface {
 	Token(ctx context.Context) (string, error)
 }
 
-type Pusher struct {
-	tokens TokenSource
+type StaticToken string
+
+func (t StaticToken) Token(context.Context) (string, error) { return string(t), nil }
+
+type Pusher struct{}
+
+func NewPusher() *Pusher {
+	return &Pusher{}
 }
 
-func NewPusher(tokens TokenSource) *Pusher {
-	return &Pusher{tokens: tokens}
-}
-
-func (p *Pusher) PushDirectory(ctx context.Context, projectDir, remoteURL string) error {
+func (p *Pusher) PushDirectory(ctx context.Context, projectDir, remoteURL string, tokens TokenSource) error {
 	repo, err := git.PlainInit(projectDir, false)
 	if err != nil {
 		return fmt.Errorf("git init failed: %w", err)
@@ -58,9 +60,9 @@ func (p *Pusher) PushDirectory(ctx context.Context, projectDir, remoteURL string
 	if err != nil {
 		return fmt.Errorf("failed to set remote origin: %w", err)
 	}
-	token, err := p.tokens.Token(ctx)
+	token, err := tokens.Token(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to get github installation token: %w", err)
+		return fmt.Errorf("failed to get github token: %w", err)
 	}
 
 	auth := &http.BasicAuth{

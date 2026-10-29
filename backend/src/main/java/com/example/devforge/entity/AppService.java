@@ -14,8 +14,8 @@ import org.hibernate.annotations.UpdateTimestamp;
     name = "app_service",
     uniqueConstraints = {
       @UniqueConstraint(
-          name = "uk_app_service_name",
-          columnNames = {"name"}),
+          name = "uk_app_service_workspace_name",
+          columnNames = {"workspace_id", "name"}),
       @UniqueConstraint(
           name = "uk_app_service_repository_url",
           columnNames = {"repository_url"})
@@ -32,7 +32,7 @@ public class AppService {
   @GeneratedValue(strategy = GenerationType.UUID)
   private UUID id;
 
-  @Column(name = "name", nullable = false, length = 20, unique = true)
+  @Column(name = "name", nullable = false, length = 20)
   @Pattern(
       regexp = "^[a-z0-9-]{3,20}$",
       message =
@@ -44,6 +44,12 @@ public class AppService {
 
   @Column(name = "repository_url", unique = true)
   private String repositoryUrl;
+
+  @Column(name = "repository_owner", length = 100)
+  private String repositoryOwner;
+
+  @Column(name = "repository_id")
+  private Long repositoryId;
 
   @Column(name = "failure_reason", length = 2000)
   private String failureReason;
@@ -72,4 +78,8 @@ public class AppService {
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "owner_id", nullable = false)
   private User owner;
+
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(name = "workspace_id", nullable = false)
+  private Workspace workspace;
 }

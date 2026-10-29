@@ -135,10 +135,18 @@ services:
       - provisioner-workspace:/app/workspace
     networks:
       - devForge
+  smee:
+    image: node:22-alpine
+    command: npx --yes smee-client -u ${SMEE_URL} -t http://backend:8080/api/v1/github/webhooks
+    depends_on:
+      - backend
+    networks:
+      - devForge
+    profiles: [ "webhooks" ]
 
 secrets:
   github_app_key:
-    file: ./devf0rger.2026-10-07.private-key.pem
+    file: ./dev-f0rge.2026-10-29.private-key.pem
 
 networks:
   devForge:

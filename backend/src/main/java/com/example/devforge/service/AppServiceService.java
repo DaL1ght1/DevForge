@@ -9,7 +9,8 @@ public interface AppServiceService {
 
   AppService createService(UUID userId, AppServiceCreationDto appService);
 
-  Page<AppService> listServices(UUID keycloakId, boolean admin, int page, int size);
+  Page<AppService> listServices(
+      UUID keycloakId, boolean admin, UUID workspaceId, int page, int size);
 
   AppService getService(UUID id, UUID keycloakId, boolean admin);
 

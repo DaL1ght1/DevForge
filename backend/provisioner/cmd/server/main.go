@@ -9,8 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/bradleyfalzon/ghinstallation/v2"
-
+	"devforge/provisioner/internal/backend"
 	"devforge/provisioner/internal/config"
 	"devforge/provisioner/internal/generator"
 	"devforge/provisioner/internal/git"
@@ -26,23 +25,19 @@ func main() {
 	log.Printf("[Provisioner] Using templates: %s", cfg.TemplatesDir)
 	log.Printf("[Provisioner] Using workspace: %s", cfg.WorkspaceDir)
 
-	gen := generator.NewProjectGenerator(cfg.TemplatesDir)
-	itr, err := ghinstallation.New(
-		http.DefaultTransport,
-		cfg.GithubAppID,
-		cfg.GithubInstallationID,
-		cfg.GithubAppPrivateKey,
-	)
-	if err != nil {
-		log.Fatalf("GitHub App auth init failed: %v", err)
+	deps := provKafka.Dependencies{
+		Generator:   generator.NewProjectGenerator(cfg.TemplatesDir),
+		Clients:     provKafka.InstallationClients(github.NewClientFactory(cfg.GithubAppID, cfg.GithubAppPrivateKey)),
+		TokenClient: provKafka.UserTokenClients,
+		Pusher:      git.NewPusher(),
+		Workspace:   cfg.WorkspaceDir,
 	}
-
-	ghClient, err := github.NewClient(itr, cfg.GithubOwner)
-	if err != nil {
-		log.Fatalf("GitHub client init failed: %v", err)
+	if cfg.InternalAPIToken != "" {
+		deps.UserTokens = backend.NewClient(cfg.BackendInternalURL, cfg.InternalAPIToken)
+		log.Printf("[Provisioner] Personal-account user-token fallback enabled via %s", cfg.BackendInternalURL)
+	} else {
+		log.Println("[Provisioner] INTERNAL_API_TOKEN not set: personal accounts must accept installation tokens")
 	}
-
-	gitPusher := git.NewPusher(itr)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
@@ -52,10 +47,7 @@ func main() {
 		cfg.RequestTopic,
 		cfg.ResponseTopic,
 		cfg.KafkaGroupID,
-		gen,
-		ghClient,
-		gitPusher,
-		cfg.WorkspaceDir,
+		deps,
 	)
 	go worker.Start(ctx)
 

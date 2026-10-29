@@ -52,7 +52,7 @@ public class User {
   @UpdateTimestamp
   private Instant updatedAt;
 
-  @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, orphanRemoval = true)
+  @OneToMany(mappedBy = "owner")
   @Builder.Default
   private List<AppService> services = new ArrayList<>();
 }

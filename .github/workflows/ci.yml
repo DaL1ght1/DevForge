@@ -27,14 +27,16 @@ jobs:
         with:
           filters: |
             go:
+              - '.github/workflows/ci.yml'
               - 'backend/provisioner/**'
-              - 'backend/templates/**'
+              - 'backend/.golangci.yml'
             spring:
+              - '.github/workflows/ci.yml'
               - 'backend/src/**'
               - 'backend/pom.xml'
               - 'backend/.mvn/**'
-              - 'backend/keycloak/**'
             next:
+              - '.github/workflows/ci.yml'
               - 'frontend/**'
 
   go:
@@ -51,7 +53,6 @@ jobs:
           go-version-file: backend/provisioner/go.mod
           cache-dependency-path: backend/provisioner/go.sum
       - run: go install golang.org/x/tools/cmd/goimports@v0.38.0
-      - run: test -z "$(gofmt -l .)"
       - run: test -z "$(goimports -l .)"
       - uses: golangci/golangci-lint-action@v8.0.0
         with:
@@ -71,7 +72,7 @@ jobs:
       KEYCLOAK_INTERNAL_SERVER_URL: http://localhost:8180
       KEYCLOAK_TEST_REALM: DevForge-test
       KEYCLOAK_ADMIN_CLIENT_ID: devforge-admin-test
-      KEYCLOAK_ADMIN_CLIENT_SECRET: ${{ secrets.KEYCLOAK_ADMIN_CLIENT_SECRET || 'ci-test-client-secret' }}
+      KEYCLOAK_ADMIN_CLIENT_SECRET: ci-test-client-secret
       KEYCLOAK_TEST_ADMIN_USERNAME: test-admin
       KEYCLOAK_TEST_ADMIN_EMAIL: test-admin@example.com
       KEYCLOAK_TEST_ADMIN_PASSWORD: ci-test-admin-password
@@ -92,21 +93,6 @@ jobs:
           distribution: temurin
           java-version: '25'
           cache: maven
-      - name: Start Keycloak for integration tests
-        run: |
-          jq --arg secret "$KEYCLOAK_ADMIN_CLIENT_SECRET" \
-            '(.clients[] | select(.clientId == "devforge-admin-test") | .secret) = $secret' \
-            keycloak/DevForge-test-realm.json > /tmp/DevForge-test-realm.json
-          cp /tmp/DevForge-test-realm.json keycloak/DevForge-test-realm.json
-          docker run -d --name devforge-keycloak \
-            -p 8180:8080 \
-            -v "$GITHUB_WORKSPACE/backend/keycloak:/opt/keycloak/data/import" \
-            quay.io/keycloak/keycloak:26.7.4 \
-            start-dev --import-realm
-          for i in {1..30}; do
-            curl --fail --silent http://localhost:8180/realms/DevForge-test/.well-known/openid-configuration >/dev/null && break
-            sleep 2
-          done
       - run: ./mvnw spotless:check
       - run: ./mvnw test
 
@@ -129,3 +115,4 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+      - run: npm run build

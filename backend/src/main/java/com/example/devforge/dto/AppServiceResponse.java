@@ -10,10 +10,12 @@ public record AppServiceResponse(
     String name,
     String description,
     String repositoryUrl,
+    String repositoryOwner,
     String failureReason,
     ServiceStatus status,
     TemplateVersionResponse templateVersion,
     UserResponseDto owner,
+    WorkspaceSummaryResponse workspace,
     Instant createdAt,
     Instant updatedAt)
     implements Serializable {}

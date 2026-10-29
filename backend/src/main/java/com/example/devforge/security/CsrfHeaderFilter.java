@@ -24,7 +24,9 @@ public class CsrfHeaderFilter extends OncePerRequestFilter {
                     c ->
                         AuthCookies.ACCESS.equals(c.getName())
                             || AuthCookies.REFRESH.equals(c.getName()));
+    boolean webhook = req.getRequestURI().endsWith("/github/webhooks");
     if (cookieAuth
+        && !webhook
         && !SAFE.contains(req.getMethod())
         && req.getHeader("X-Requested-With") == null) {
       res.sendError(HttpServletResponse.SC_FORBIDDEN, "Missing X-Requested-With header");

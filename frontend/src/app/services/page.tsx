@@ -14,6 +14,7 @@ import {
 import { servicesApi } from "@/lib/api/services";
 import { AppServiceResponse } from "@/types/api";
 import { useAuth } from "@/context/AuthContext";
+import { useWorkspace } from "@/context/WorkspaceContext";
 import { Navbar } from "@/components/layout/Navbar";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Badge } from "@/components/ui/Badge";
@@ -40,6 +41,8 @@ function formatStatus(status: string) {
 
 export default function ServicesPage() {
   const { user, isLoading: authLoading } = useAuth();
+  const { activeWorkspace } = useWorkspace();
+  const workspaceId = activeWorkspace?.id;
   const [services, setServices] = useState<AppServiceResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -48,7 +51,7 @@ export default function ServicesPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const servicesPage = await servicesApi.list(0, 50);
+      const servicesPage = await servicesApi.list(0, 50, workspaceId);
       setServices(servicesPage.content || []);
     } catch (err: unknown) {
       const message =
@@ -60,11 +63,11 @@ export default function ServicesPage() {
   };
 
   useEffect(() => {
-    if (authLoading || !user) return;
+    if (authLoading || !user || !workspaceId) return;
 
     let active = true;
     servicesApi
-      .list(0, 50)
+      .list(0, 50, workspaceId)
       .then((servicesPage) => {
         if (!active) return;
         setServices(servicesPage.content || []);
@@ -78,7 +81,7 @@ export default function ServicesPage() {
     return () => {
       active = false;
     };
-  }, [authLoading, user]);
+  }, [authLoading, user, workspaceId]);
 
   const filteredServices = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -124,7 +127,17 @@ export default function ServicesPage() {
               </h1>
               <p className="text-xs text-zinc-400 mt-1 max-w-xl">
                 Provisioned microservices, active deployments, and automated
-                repository configurations.
+                repository configurations
+                {activeWorkspace ? (
+                  <>
+                    {" "}
+                    in{" "}
+                    <span className="font-semibold text-zinc-200">
+                      {activeWorkspace.name}
+                    </span>
+                  </>
+                ) : null}
+                .
               </p>
             </div>
 

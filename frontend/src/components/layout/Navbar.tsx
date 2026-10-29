@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { WorkspaceSwitcher } from "@/components/layout/WorkspaceSwitcher";
 import { Badge } from "@/components/ui/Badge";
 import { templatesApi } from "@/lib/api/templates";
 import {
@@ -16,6 +17,7 @@ import {
   Terminal,
   RefreshCw,
   UserRound,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -70,6 +72,12 @@ export function Navbar() {
       icon: Plus,
       active: pathname === "/services/new",
     },
+    {
+      href: "/workspaces",
+      label: "Workspaces",
+      icon: Users,
+      active: pathname.startsWith("/workspaces"),
+    },
   ];
 
   return (
@@ -116,6 +124,7 @@ export function Navbar() {
         </div>
 
         <div className="hidden md:flex items-center gap-3">
+          {user && <WorkspaceSwitcher />}
           {user && (
             <Link
               href="/profile"
@@ -209,6 +218,8 @@ export function Navbar() {
               );
             })}
           </nav>
+
+          {user && <WorkspaceSwitcher className="pt-2" />}
 
           {user && (
             <div className="pt-2 border-t border-zinc-800/80 flex items-center justify-between text-xs">

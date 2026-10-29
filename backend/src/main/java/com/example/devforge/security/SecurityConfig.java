@@ -45,10 +45,15 @@ public class SecurityConfig {
                         "/auth/logout",
                         "/auth/oauth2/ticket",
                         "/auth/oauth2/signup/pending",
-                        "/auth/oauth2/signup/complete")
+                        "/auth/oauth2/signup/complete",
+                        "/github/webhooks",
+                        "/internal/provisioning/jobs/*/user-token")
                     .permitAll()
                     .requestMatchers(
-                        HttpMethod.GET, "/auth/oauth2/authorize/*", "/auth/oauth2/callback")
+                        HttpMethod.GET,
+                        "/auth/oauth2/authorize/*",
+                        "/auth/oauth2/callback",
+                        "/github/callback")
                     .permitAll()
                     .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
                     .permitAll()
@@ -101,7 +106,12 @@ public class SecurityConfig {
     return request -> {
       String fromHeader = header.resolve(request);
       if (fromHeader != null) return fromHeader;
-      if (request.getRequestURI().contains("/auth/") || request.getCookies() == null) return null;
+      String uri = request.getRequestURI();
+      if (uri.contains("/auth/")
+          || uri.endsWith("/github/callback")
+          || uri.endsWith("/github/webhooks")
+          || uri.contains("/internal/")
+          || request.getCookies() == null) return null;
       for (Cookie c : request.getCookies()) {
         if (AuthCookies.ACCESS.equals(c.getName())) return c.getValue();
       }

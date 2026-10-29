@@ -6,21 +6,30 @@ import com.example.devforge.client.model.TemplateContext;
 import com.example.devforge.dto.AppServiceCreationDto;
 import com.example.devforge.dto.ProvisionRequestedEvent;
 import com.example.devforge.entity.AppService;
+import com.example.devforge.entity.GithubAccountType;
+import com.example.devforge.entity.GithubInstallation;
+import com.example.devforge.entity.GithubInstallationStatus;
 import com.example.devforge.entity.ProvisioningJob;
 import com.example.devforge.entity.ProvisioningStatus;
 import com.example.devforge.entity.ServiceStatus;
 import com.example.devforge.entity.TemplateVersion;
 import com.example.devforge.entity.User;
+import com.example.devforge.entity.Workspace;
+import com.example.devforge.entity.WorkspaceRole;
 import com.example.devforge.exception.AppServiceNotFoundException;
 import com.example.devforge.exception.AppTemplateVersionNotFoundException;
-import com.example.devforge.exception.UnauthorizedAccessException;
+import com.example.devforge.exception.ConflictException;
+import com.example.devforge.exception.GithubNotConnectedException;
 import com.example.devforge.exception.UserNotFoundException;
+import com.example.devforge.exception.WorkspaceNotFoundException;
 import com.example.devforge.mapper.AppServiceMapper;
 import com.example.devforge.repository.AppServiceRepository;
+import com.example.devforge.repository.GithubInstallationRepository;
 import com.example.devforge.repository.ProvisioningJobRepository;
 import com.example.devforge.repository.TemplateVersionRepository;
 import com.example.devforge.repository.UserRepository;
 import com.example.devforge.service.AppServiceService;
+import com.example.devforge.service.WorkspaceService;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -47,6 +56,8 @@ public class AppServiceImplementation implements AppServiceService {
   private final TemplateContextResolver contextResolver;
   private final ApplicationEventPublisher eventPublisher;
   private final ProvisioningJobRepository provisioningJobRepository;
+  private final WorkspaceService workspaceService;
+  private final GithubInstallationRepository githubInstallationRepository;
   private final Yaml yaml = new Yaml();
 
   @Override
@@ -74,18 +85,46 @@ public class AppServiceImplementation implements AppServiceService {
             .orElseThrow(
                 () ->
                     new UserNotFoundException("User not found with KeycloakId " + userKeycloakId));
+    Workspace workspace =
+        appServiceDto.workspaceId() == null
+            ? workspaceService.getOrCreatePersonal(user)
+            : workspaceService
+                .requireRole(appServiceDto.workspaceId(), userKeycloakId, WorkspaceRole.ADMIN)
+                .getWorkspace();
+    if (appServiceRepository.existsByWorkspaceIdAndName(workspace.getId(), appServiceDto.name())) {
+      throw new ConflictException(
+          "A service named " + appServiceDto.name() + " already exists in this workspace");
+    }
+    // The destination comes only from a verified, active installation linked to the workspace.
+    GithubInstallation installation =
+        githubInstallationRepository
+            .findFirstByWorkspaceIdAndStatusOrderByCreatedAtAsc(
+                workspace.getId(), GithubInstallationStatus.ACTIVE)
+            .orElseThrow(
+                () ->
+                    new GithubNotConnectedException(
+                        "Connect a GitHub account to this workspace before creating services"));
 
     AppService service = appServiceMapper.toEntity(appServiceDto);
     service.setOwner(user);
+    service.setWorkspace(workspace);
     service.setTemplateVersion(templateVersion);
     service.setStatus(ServiceStatus.CREATING);
+    service.setRepositoryOwner(installation.getAccountLogin());
     AppService saved = appServiceRepository.save(service);
-    provisioningJobRepository.save(
-        ProvisioningJob.builder().service(saved).status(ProvisioningStatus.PENDING).build());
+    ProvisioningJob job =
+        provisioningJobRepository.save(
+            ProvisioningJob.builder()
+                .service(saved)
+                .status(ProvisioningStatus.PENDING)
+                .installationId(installation.getInstallationId())
+                .build());
     TemplateContext ctx = contextResolver.resolve(appServiceDto);
 
     ProvisionerClient.ProvisionRequest provRequest =
         new ProvisionerClient.ProvisionRequest(
+            ProvisionerClient.CONTRACT_VERSION,
+            job.getId(),
             saved.getId(),
             ctx.serviceName(),
             templateVersion.getTemplate().getStableKey(),
@@ -93,7 +132,13 @@ public class AppServiceImplementation implements AppServiceService {
             ctx.packageName(),
             ctx.className(),
             ctx.description(),
-            ctx.databaseType());
+            ctx.databaseType(),
+            installation.getInstallationId(),
+            installation.getAccountLogin(),
+            installation.getAccountType() == GithubAccountType.ORGANIZATION
+                ? "Organization"
+                : "User",
+            "private");
     eventPublisher.publishEvent(new ProvisionRequestedEvent(provRequest));
     log.info(
         "Service {} saved with id {}, provisioning requested", ctx.serviceName(), saved.getId());
@@ -101,18 +146,25 @@ public class AppServiceImplementation implements AppServiceService {
   }
 
   @Override
-  public Page<AppService> listServices(UUID keycloakId, boolean admin, int page, int size) {
+  public Page<AppService> listServices(
+      UUID keycloakId, boolean admin, UUID workspaceId, int page, int size) {
     Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+    if (workspaceId != null) {
+      if (!admin) {
+        workspaceService.requireRole(workspaceId, keycloakId, WorkspaceRole.MEMBER);
+      }
+      return appServiceRepository.findAllByWorkspaceId(workspaceId, pageable);
+    }
     return admin
         ? appServiceRepository.findAll(pageable)
-        : appServiceRepository.findAllByOwnerKeycloakId(keycloakId, pageable);
+        : appServiceRepository.findAllVisibleToMember(keycloakId, pageable);
   }
 
   @Override
   public AppService getService(UUID id, UUID keycloakId, boolean admin) {
     return (admin
             ? appServiceRepository.findById(id)
-            : appServiceRepository.findByIdAndOwnerKeycloakId(id, keycloakId))
+            : appServiceRepository.findByIdVisibleToMember(id, keycloakId))
         .orElseThrow(() -> new AppServiceNotFoundException(id));
   }
 
@@ -123,8 +175,11 @@ public class AppServiceImplementation implements AppServiceService {
         appServiceRepository
             .findById(serviceId)
             .orElseThrow(() -> new AppServiceNotFoundException(serviceId));
-    if (!service.getOwner().getKeycloakId().equals(userKeycloakId)) {
-      throw new UnauthorizedAccessException("User not authorized to delete this service");
+    try {
+      workspaceService.requireRole(
+          service.getWorkspace().getId(), userKeycloakId, WorkspaceRole.ADMIN);
+    } catch (WorkspaceNotFoundException e) {
+      throw new AppServiceNotFoundException(serviceId);
     }
     appServiceRepository.delete(service);
   }

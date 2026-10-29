@@ -47,8 +47,11 @@ func TestLoadAppliesDefaultsAndNormalizesTopics(t *testing.T) {
 	if len(cfg.KafkaBrokers) != 2 || cfg.KafkaBrokers[1] != "broker-2:9092" {
 		t.Fatalf("unexpected brokers: %+v", cfg.KafkaBrokers)
 	}
-	if cfg.GithubAppID != 12345 || cfg.GithubInstallationID != 67890 || cfg.KafkaGroupID != "test-group" {
+	if cfg.GithubAppID != 12345 || cfg.KafkaGroupID != "test-group" {
 		t.Fatalf("unexpected GitHub App credentials/group: %+v", cfg)
+	}
+	if cfg.BackendInternalURL != "http://backend:8080/api/v1" || cfg.InternalAPIToken != "" {
+		t.Fatalf("unexpected internal API defaults: %+v", cfg)
 	}
 }
 
@@ -106,8 +109,23 @@ func TestLoadReadsEnvironmentFromNearestWorkingDirectory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load failed: %v", err)
 	}
-	if cfg.GithubAppID != 12345 || cfg.GithubInstallationID != 67890 || cfg.GithubOwner != "file-owner" || cfg.Port != "9090" {
+	if cfg.GithubAppID != 12345 || cfg.Port != "9090" {
 		t.Fatalf("dotenv values were not loaded: %+v", cfg)
+	}
+}
+
+func TestLoadNoLongerRequiresGlobalOwnerOrInstallation(t *testing.T) {
+	setGitHubAppEnvironment(t)
+	t.Setenv("GITHUB_APP_INSTALLATION_ID", "")
+	t.Setenv("GITHUB_OWNER", "")
+	t.Setenv("INTERNAL_API_TOKEN", "secret")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+	if cfg.InternalAPIToken != "secret" {
+		t.Fatalf("internal API token not loaded: %+v", cfg)
 	}
 }
 
@@ -117,4 +135,6 @@ func setGitHubAppEnvironment(t *testing.T) {
 	t.Setenv("GITHUB_APP_INSTALLATION_ID", "67890")
 	t.Setenv("GITHUB_APP_PRIVATE_KEY", "test-private-key")
 	t.Setenv("GITHUB_APP_PRIVATE_KEY_PATH", "")
+	t.Setenv("INTERNAL_API_TOKEN", "")
+	t.Setenv("BACKEND_INTERNAL_URL", "")
 }
