@@ -1,5 +1,7 @@
 package com.example.devforge.client;
 
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
 
@@ -11,27 +13,62 @@ import org.springframework.stereotype.Component;
 @Component
 public class ProvisionerClient {
 
-  public static final int CONTRACT_VERSION = 2;
+  public static final int CONTRACT_VERSION = 4;
 
   public record ProvisionRequest(
       int contractVersion,
       UUID jobId,
       UUID serviceId,
+      UUID applicationId,
       String serviceName,
       String templateName,
       String templateVersion,
+      String artifactDigest,
       String packageName,
       String className,
       String description,
-      String databaseType,
+      Map<String, String> variables,
+      Map<String, List<String>> features,
+      List<ApplicationServiceSpec> services,
       long installationId,
       String ownerLogin,
       String ownerType,
       String visibility) {}
 
+  public record RenderRequest(
+      String serviceName,
+      String templateName,
+      String templateVersion,
+      String artifactDigest,
+      String packageName,
+      String className,
+      String description,
+      Map<String, String> variables,
+      Map<String, List<String>> features,
+      List<ApplicationServiceSpec> services) {}
+
+  public record ApplicationServiceSpec(
+      UUID serviceId,
+      String serviceName,
+      String templateName,
+      String templateVersion,
+      String artifactDigest,
+      String packageName,
+      String className,
+      String description,
+      Map<String, String> variables,
+      Map<String, List<String>> features,
+      int port) {}
+
+  public record RenderedFile(
+      String path, String origin, int size, boolean binary, String content, boolean omitted) {}
+
+  public record RenderResponse(List<RenderedFile> files, long totalBytes) {}
+
   public record ProvisionResponse(
       UUID jobId,
       UUID serviceId,
+      UUID applicationId,
       String serviceName,
       String outputPath,
       String repositoryUrl,

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -21,8 +22,33 @@ func main() {
 	outputDir := flag.String("output", "", "directory where the generated project is written")
 	serviceName := flag.String("service-name", "ci-service", "generated service name (3-20 chars: a-z, 0-9, hyphen)")
 	version := flag.String("version", "ci", "template version recorded in .devforge.yaml")
-	databaseType := flag.String("database-type", "NONE", "database type variable")
+	features := keyValues{}
+	variables := keyValues{}
+	flag.Var(features, "feature", "selected feature as group=option (repeatable)")
+	flag.Var(variables, "var", "template variable as NAME=value (repeatable)")
+	listCI := flag.Bool("list-ci", false, "print the CI build matrix (templates x ci profiles) as JSON and exit")
+	spec := flag.String("spec", "", "JSON file with a full generation request, e.g. a multi-service application")
 	flag.Parse()
+
+	if *spec != "" {
+		if *outputDir == "" {
+			flag.Usage()
+			os.Exit(2)
+		}
+		projectDir, err := generateFromSpec(*templatesRoot, *spec, *outputDir)
+		if err != nil {
+			log.Fatalf("generate from %s: %v", *spec, err)
+		}
+		fmt.Println(projectDir)
+		return
+	}
+
+	if *listCI {
+		if err := writeCIMatrix(*templatesRoot, os.Stdout); err != nil {
+			log.Fatalf("list ci matrix: %v", err)
+		}
+		return
+	}
 
 	if *templateName == "" || *outputDir == "" {
 		flag.Usage()
@@ -41,7 +67,8 @@ func main() {
 		PackageName:     "com.devforge." + packageSegment(name),
 		ClassName:       pascalCase(name),
 		Description:     "CI generated project",
-		DatabaseType:    *databaseType,
+		Variables:       variables.single(),
+		Features:        features,
 	}
 
 	if err := os.MkdirAll(filepath.Clean(*outputDir), 0o755); err != nil {
@@ -53,6 +80,50 @@ func main() {
 		log.Fatalf("generate template %q: %v", *templateName, err)
 	}
 	fmt.Println(projectDir)
+}
+
+func generateFromSpec(templatesRoot, specPath, outputDir string) (string, error) {
+	data, err := os.ReadFile(specPath)
+	if err != nil {
+		return "", err
+	}
+	var req model.GenerationRequest
+	if err := json.Unmarshal(data, &req); err != nil {
+		return "", err
+	}
+	for i, s := range req.Services {
+		if s.PackageName == "" {
+			req.Services[i].PackageName = "com.devforge." + packageSegment(s.ServiceName)
+		}
+		if s.ClassName == "" {
+			req.Services[i].ClassName = pascalCase(s.ServiceName)
+		}
+	}
+	if err := os.MkdirAll(filepath.Clean(outputDir), 0o755); err != nil {
+		return "", err
+	}
+	return generator.NewProjectGenerator(templatesRoot).Generate(req, outputDir)
+}
+
+type keyValues map[string][]string
+
+func (kv keyValues) String() string { return fmt.Sprint(map[string][]string(kv)) }
+
+func (kv keyValues) Set(s string) error {
+	key, value, ok := strings.Cut(s, "=")
+	if !ok || key == "" || value == "" {
+		return fmt.Errorf("expected KEY=VALUE, got %q", s)
+	}
+	kv[key] = append(kv[key], value)
+	return nil
+}
+
+func (kv keyValues) single() map[string]string {
+	out := make(map[string]string, len(kv))
+	for k, v := range kv {
+		out[k] = v[len(v)-1]
+	}
+	return out
 }
 
 func validServiceName(s string) bool {

@@ -1,6 +1,7 @@
 package generator
 
 import (
+	"context"
 	"fmt"
 	"io/fs"
 	"os"
@@ -10,8 +11,13 @@ import (
 	"devforge/provisioner/internal/model"
 )
 
+type ArtifactSource interface {
+	Get(ctx context.Context, digest string) (fs.FS, error)
+}
+
 type ProjectGenerator struct {
 	TemplatesRoot string
+	Artifacts     ArtifactSource
 }
 
 func NewProjectGenerator(templatesRoot string) *ProjectGenerator {
@@ -20,101 +26,75 @@ func NewProjectGenerator(templatesRoot string) *ProjectGenerator {
 	}
 }
 
-func (g *ProjectGenerator) Generate(req model.GenerationRequest, outputDir string) (string, error) {
-	templatePath := filepath.Join(g.TemplatesRoot, req.TemplateName)
+func (g *ProjectGenerator) WithArtifacts(source ArtifactSource) *ProjectGenerator {
+	g.Artifacts = source
+	return g
+}
 
-	if _, err := os.Stat(templatePath); os.IsNotExist(err) {
-		return "", fmt.Errorf("template not found: %s", templatePath)
+func (g *ProjectGenerator) Render(ctx context.Context, req model.GenerationRequest) (*Project, error) {
+	if len(req.Services) > 0 {
+		return g.renderApplication(ctx, req)
 	}
+	return g.renderService(ctx, req)
+}
 
-	projectDir := filepath.Join(outputDir, req.ServiceName)
-	if err := os.MkdirAll(projectDir, 0755); err != nil {
-		return "", fmt.Errorf("failed to create project directory: %w", err)
-	}
-
-	variables := map[string]string{
-		"SERVICE_NAME":  req.ServiceName,
-		"CLASS_NAME":    req.ClassName,
-		"PACKAGE_NAME":  req.PackageName,
-		"PACKAGE_PATH":  strings.ReplaceAll(req.PackageName, ".", "/"),
-		"DESCRIPTION":   req.Description,
-		"DATABASE_TYPE": req.DatabaseType,
-	}
-
-	err := filepath.WalkDir(templatePath, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		relPath, err := filepath.Rel(templatePath, path)
-		if err != nil {
-			return err
-		}
-
-		if relPath == "." {
-			return nil
-		}
-		resolvedRelPath := g.resolvePathTokens(relPath, variables)
-		targetPath := filepath.Join(projectDir, resolvedRelPath)
-
-		if d.IsDir() {
-			return os.MkdirAll(targetPath, 0755)
-		}
-
-		return g.processAndWriteFile(path, targetPath, variables)
-	})
-
+func (g *ProjectGenerator) renderService(ctx context.Context, req model.GenerationRequest) (*Project, error) {
+	fsys, err := g.templateFS(ctx, req)
 	if err != nil {
-		return "", fmt.Errorf("error walking template: %w", err)
+		return nil, err
 	}
-	if err := g.writeDevForgeManifest(projectDir, req); err != nil {
-		return "", fmt.Errorf("writing .devforge.yaml: %w", err)
-	}
+	return Render(fsys, req)
+}
 
+func (g *ProjectGenerator) templateFS(ctx context.Context, req model.GenerationRequest) (fs.FS, error) {
+	if req.ArtifactDigest != "" && g.Artifacts != nil {
+		fsys, err := g.Artifacts.Get(ctx, req.ArtifactDigest)
+		if err != nil {
+			return nil, fmt.Errorf("loading template artifact: %w", err)
+		}
+		return fsys, nil
+	}
+	if !singlePathElement(req.TemplateName) {
+		return nil, fmt.Errorf("invalid template name %q", req.TemplateName)
+	}
+	templatePath := filepath.Join(g.TemplatesRoot, req.TemplateName)
+	if info, err := os.Stat(templatePath); err != nil || !info.IsDir() {
+		return nil, fmt.Errorf("template not found: %s (no stored artifact, run template sync)", templatePath)
+	}
+	return os.DirFS(templatePath), nil
+}
+
+func (g *ProjectGenerator) Generate(req model.GenerationRequest, outputDir string) (string, error) {
+	if !singlePathElement(req.ServiceName) {
+		return "", fmt.Errorf("invalid service name %q", req.ServiceName)
+	}
+	project, err := g.Render(context.Background(), req)
+	if err != nil {
+		return "", err
+	}
+	projectDir := filepath.Join(outputDir, req.ServiceName)
+	if err := WriteProject(project, projectDir); err != nil {
+		return "", err
+	}
 	return projectDir, nil
 }
 
-func (g *ProjectGenerator) writeDevForgeManifest(projectDir string, req model.GenerationRequest) error {
-	content := fmt.Sprintf(
-		"template: %s\nversion: %s\nvariables:\n  SERVICE_NAME: %s\n  PACKAGE_NAME: %s\n  CLASS_NAME: %s\n  DATABASE_TYPE: %s\n",
-		quoteYaml(req.TemplateName),
-		quoteYaml(req.TemplateVersion),
-		quoteYaml(req.ServiceName),
-		quoteYaml(req.PackageName),
-		quoteYaml(req.ClassName),
-		quoteYaml(req.DatabaseType),
-	)
-	return os.WriteFile(filepath.Join(projectDir, ".devforge.yaml"), []byte(content), 0644)
+func WriteProject(project *Project, dir string) error {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("failed to create project directory: %w", err)
+	}
+	for _, f := range project.Files {
+		target := filepath.Join(dir, filepath.FromSlash(f.Path))
+		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(target, f.Content, f.Mode); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-func quoteYaml(value string) string {
-	return `"` + strings.ReplaceAll(strings.ReplaceAll(value, `\`, `\\`), `"`, `\"`) + `"`
-}
-
-func (g *ProjectGenerator) resolvePathTokens(path string, vars map[string]string) string {
-	res := path
-	res = strings.ReplaceAll(res, "__PACKAGE_PATH__", vars["PACKAGE_PATH"])
-	res = strings.ReplaceAll(res, "__CLASS_NAME__", vars["CLASS_NAME"])
-	res = strings.ReplaceAll(res, "__SERVICE_NAME__", vars["SERVICE_NAME"])
-	res = strings.TrimSuffix(res, ".template")
-	return res
-}
-
-func (g *ProjectGenerator) processAndWriteFile(srcPath, destPath string, vars map[string]string) error {
-	content, err := os.ReadFile(srcPath)
-	if err != nil {
-		return err
-	}
-
-	replacedContent := string(content)
-	for key, val := range vars {
-		placeholder := "{{" + key + "}}"
-		replacedContent = strings.ReplaceAll(replacedContent, placeholder, val)
-	}
-
-	if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
-		return err
-	}
-
-	return os.WriteFile(destPath, []byte(replacedContent), 0644)
+func singlePathElement(name string) bool {
+	return name != "" && name != "." && name != ".." && !strings.ContainsAny(name, `/\`)
 }

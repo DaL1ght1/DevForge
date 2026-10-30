@@ -130,6 +130,19 @@ public class GlobalExceptionHandler {
     return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(error);
   }
 
+  @ExceptionHandler(PreviewUnavailableException.class)
+  public ResponseEntity<ApiErrorResponse> handlePreviewUnavailable(
+      PreviewUnavailableException ex, HttpServletRequest request) {
+    log.warn("Preview unavailable at path [{}]: {}", request.getRequestURI(), ex.getMessage());
+    ApiErrorResponse error =
+        new ApiErrorResponse(
+            HttpStatus.SERVICE_UNAVAILABLE.value(),
+            "Preview Unavailable",
+            ex.getMessage(),
+            request.getRequestURI());
+    return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(error);
+  }
+
   @ExceptionHandler(InvalidWebhookSignatureException.class)
   public ResponseEntity<ApiErrorResponse> handleInvalidWebhookSignature(
       InvalidWebhookSignatureException ex, HttpServletRequest request) {

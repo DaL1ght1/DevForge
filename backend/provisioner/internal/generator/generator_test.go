@@ -59,7 +59,6 @@ func TestProjectGenerator(t *testing.T) {
 		PackageName:  "com.devforge.orderservice",
 		ClassName:    "OrderService",
 		Description:  "Order microservice",
-		DatabaseType: "POSTGRESQL",
 	}
 
 	projectDir, err := gen.Generate(req, tempOutputDir)
@@ -118,7 +117,7 @@ func TestProjectGeneratorReplacesAllVariablesAndPathTokens(t *testing.T) {
 		PackageName:  "com.devforge.catalog",
 		ClassName:    "CatalogService",
 		Description:  "Catalog API",
-		DatabaseType: "NONE",
+		Variables:    map[string]string{"DATABASE_TYPE": "NONE"},
 	}, t.TempDir())
 	if err != nil {
 		t.Fatalf("Generate failed: %v", err)

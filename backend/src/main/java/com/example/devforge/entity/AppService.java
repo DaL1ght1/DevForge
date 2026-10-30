@@ -82,4 +82,11 @@ public class AppService {
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "workspace_id", nullable = false)
   private Workspace workspace;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "application_id")
+  private Application application;
+
+  @Column(name = "port")
+  private Integer port;
 }

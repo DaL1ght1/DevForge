@@ -52,6 +52,9 @@ public class TemplateVersion {
   @Column(name = "artifact_reference", nullable = false, length = 500)
   private String artifactReference;
 
+  @Column(name = "artifact_digest", length = 64)
+  private String artifactDigest;
+
   @Column(name = "active", nullable = false)
   @Builder.Default
   private boolean active = true;

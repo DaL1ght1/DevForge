@@ -52,7 +52,6 @@ class AppTemplateControllerTest {
             TemplateLanguage.JAVA,
             TemplateFramework.SPRING_BOOT,
             BuildTool.MAVEN,
-            "POSTGRESQL",
             null);
   }
 

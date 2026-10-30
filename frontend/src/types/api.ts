@@ -59,10 +59,120 @@ export interface AppTemplateResponse {
   language: TemplateLanguage | string;
   framework: TemplateFramework | string;
   buildTool: BuildTool | string;
-  databaseType: string;
   createdAt: string;
   templateVersionId?: string;
   stableKey?: string;
+}
+
+export type TemplateVariableType = "STRING" | "ENUM" | "BOOLEAN";
+
+export interface TemplateVariable {
+  name: string;
+  label: string;
+  type: TemplateVariableType;
+  required: boolean;
+  defaultValue: string | null;
+  options: string[];
+  pattern: string | null;
+}
+
+export interface TemplateDependency {
+  group: string | null;
+  artifact: string;
+  version: string | null;
+  scope: string | null;
+}
+
+export interface TemplateFeatureOption {
+  id: string;
+  label: string;
+  description: string | null;
+  /** Option or group ids that must also be selected. */
+  requires: string[];
+  /** Option or group ids that must not be selected. */
+  conflicts: string[];
+  dependencies: TemplateDependency[];
+}
+
+export interface TemplateFeatureGroup {
+  id: string;
+  label: string;
+  /** CHOICE: at most one option (exactly one when required). MULTI: any subset. */
+  kind: "CHOICE" | "MULTI";
+  required: boolean;
+  options: TemplateFeatureOption[];
+}
+
+export interface TemplateOptionsResponse {
+  templateId: string;
+  templateVersionId: string;
+  version: string;
+  contentHash: string | null;
+  schemaVersion: number;
+  variables: TemplateVariable[];
+  features: TemplateFeatureGroup[];
+}
+
+export interface ApplicationServiceInput {
+  name: string;
+  description?: string;
+  templateVersionId: string;
+  variables?: Record<string, string>;
+  features?: Record<string, string[]>;
+}
+
+export interface ApplicationCreationDto {
+  name: string;
+  description?: string;
+  workspaceId?: string;
+  services: ApplicationServiceInput[];
+}
+
+export interface ApplicationServiceSummary {
+  id: string;
+  name: string;
+  path: string;
+  port: number | null;
+  status: ServiceStatus | string;
+  templateName: string;
+  templateVersion: string;
+  repositoryUrl: string | null;
+}
+
+export interface ApplicationResponse {
+  id: string;
+  name: string;
+  description: string | null;
+  status: ServiceStatus | string;
+  repositoryUrl: string | null;
+  repositoryOwner: string | null;
+  failureReason: string | null;
+  workspace: { id: string; name: string; slug: string; type: string };
+  createdAt: string;
+  updatedAt: string;
+  services: ApplicationServiceSummary[];
+}
+
+export interface PreviewFileEntry {
+  path: string;
+  /** "base", "devforge" or "feature:<optionId>". */
+  origin: string;
+  size: number;
+  binary: boolean;
+  omitted: boolean;
+}
+
+export interface ServicePreviewResponse {
+  previewId: string;
+  templateName: string;
+  templateVersion: string;
+  fileCount: number;
+  totalBytes: number;
+  files: PreviewFileEntry[];
+}
+
+export interface PreviewFileResponse extends PreviewFileEntry {
+  content: string | null;
 }
 
 export interface TemplateSynchronizationResult {
@@ -76,7 +186,10 @@ export interface AppServiceCreationDto {
   name: string;
   description?: string;
   templateVersionId: string;
-  databaseType: string;
+  /** Values for the template's manifest variables. */
+  variables?: Record<string, string>;
+  /** Feature group id -> selected option ids, e.g. { database: ["postgresql"] }. */
+  features?: Record<string, string[]>;
   language?: string;
   framework?: string;
   buildTool?: string;

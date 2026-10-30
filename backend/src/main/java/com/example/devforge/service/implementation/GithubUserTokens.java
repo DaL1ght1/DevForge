@@ -14,7 +14,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Stores users' GitHub App user tokens (encrypted) and hands out a valid access token. */
 @Slf4j
 @Component
 @RequiredArgsConstructor

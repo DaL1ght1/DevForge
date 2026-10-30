@@ -1,0 +1,68 @@
+[[- if or (has "database") (has "messaging") -]]
+package [[ .PackageName ]];
+
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.context.annotation.Bean;
+[[- if has "kafka" ]]
+import org.testcontainers.containers.KafkaContainer;
+[[- end ]]
+[[- if has "mongodb" ]]
+import org.testcontainers.containers.MongoDBContainer;
+[[- end ]]
+[[- if has "mysql" ]]
+import org.testcontainers.containers.MySQLContainer;
+[[- end ]]
+[[- if has "postgresql" ]]
+import org.testcontainers.containers.PostgreSQLContainer;
+[[- end ]]
+[[- if has "rabbitmq" ]]
+import org.testcontainers.containers.RabbitMQContainer;
+[[- end ]]
+import org.testcontainers.utility.DockerImageName;
+
+/** Starts the backing services in Docker for tests; Spring Boot wires the connections. */
+@TestConfiguration(proxyBeanMethods = false)
+class TestcontainersConfiguration {
+[[- if has "postgresql" ]]
+
+    @Bean
+    @ServiceConnection
+    PostgreSQLContainer<?> postgresContainer() {
+        return new PostgreSQLContainer<>(DockerImageName.parse("postgres:16-alpine"));
+    }
+[[- end ]]
+[[- if has "mysql" ]]
+
+    @Bean
+    @ServiceConnection
+    MySQLContainer<?> mysqlContainer() {
+        return new MySQLContainer<>(DockerImageName.parse("mysql:8.4"));
+    }
+[[- end ]]
+[[- if has "mongodb" ]]
+
+    @Bean
+    @ServiceConnection
+    MongoDBContainer mongoDbContainer() {
+        return new MongoDBContainer(DockerImageName.parse("mongo:7"));
+    }
+[[- end ]]
+[[- if has "kafka" ]]
+
+    @Bean
+    @ServiceConnection
+    KafkaContainer kafkaContainer() {
+        return new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.6.1"));
+    }
+[[- end ]]
+[[- if has "rabbitmq" ]]
+
+    @Bean
+    @ServiceConnection
+    RabbitMQContainer rabbitContainer() {
+        return new RabbitMQContainer(DockerImageName.parse("rabbitmq:3.13-management-alpine"));
+    }
+[[- end ]]
+}
+[[- end ]]

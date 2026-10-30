@@ -1,0 +1,115 @@
+services:
+[[- range .Services ]]
+  [[ .Name ]]:
+    build: ./[[ .Path ]]
+    ports:
+      - "[[ .Port ]]:8080"
+[[- if or .Database .Broker ]]
+    environment:
+[[- if eq .Database "postgresql" ]]
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/[[ .DatabaseName ]]
+      SPRING_DATASOURCE_USERNAME: app
+      SPRING_DATASOURCE_PASSWORD: app
+      DATABASE_URL: postgres://app:app@postgres:5432/[[ .DatabaseName ]]
+[[- else if eq .Database "mysql" ]]
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/[[ .DatabaseName ]]
+      SPRING_DATASOURCE_USERNAME: app
+      SPRING_DATASOURCE_PASSWORD: app
+      DATABASE_URL: mysql://app:app@mysql:3306/[[ .DatabaseName ]]
+[[- else if eq .Database "mongodb" ]]
+      SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/[[ .DatabaseName ]]
+      MONGODB_URI: mongodb://mongodb:27017/[[ .DatabaseName ]]
+[[- end ]]
+[[- if eq .Broker "kafka" ]]
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+[[- else if eq .Broker "rabbitmq" ]]
+      SPRING_RABBITMQ_HOST: rabbitmq
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+[[- end ]]
+    depends_on:
+[[- if eq .Database "postgresql" ]]
+      postgres:
+        condition: service_healthy
+[[- else if eq .Database "mysql" ]]
+      mysql:
+        condition: service_healthy
+[[- else if eq .Database "mongodb" ]]
+      mongodb:
+        condition: service_started
+[[- end ]]
+[[- if .Broker ]]
+      [[ .Broker ]]:
+        condition: service_started
+[[- end ]]
+[[- end ]]
+[[- end ]]
+[[- if .Postgres ]]
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: devforge
+    volumes:
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d devforge"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+[[- end ]]
+[[- if .MySQL ]]
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_USER: app
+      MYSQL_PASSWORD: app
+      MYSQL_ROOT_PASSWORD: root
+    volumes:
+      - ./infra/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+[[- end ]]
+[[- if .Mongo ]]
+  mongodb:
+    image: mongo:7
+    volumes:
+      - mongo-data:/data/db
+[[- end ]]
+[[- if .Kafka ]]
+  kafka:
+    image: apache/kafka:3.7.0
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+[[- end ]]
+[[- if .RabbitMQ ]]
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    ports:
+      - "15672:15672"
+[[- end ]]
+[[- if or .Postgres .MySQL .Mongo ]]
+
+volumes:
+[[- if .Postgres ]]
+  postgres-data:
+[[- end ]]
+[[- if .MySQL ]]
+  mysql-data:
+[[- end ]]
+[[- if .Mongo ]]
+  mongo-data:
+[[- end ]]
+[[- end ]]

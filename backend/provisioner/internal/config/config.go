@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -14,7 +15,6 @@ import (
 type Config struct {
 	Port                string
 	TemplatesDir        string
-	WorkspaceDir        string
 	GithubAppID         int64
 	GithubAppPrivateKey []byte
 	KafkaBrokers        []string
@@ -23,6 +23,11 @@ type Config struct {
 	KafkaGroupID        string
 	BackendInternalURL  string
 	InternalAPIToken    string
+	Concurrency         int
+	PerInstallation     int
+	Partitions          int
+	JobTimeout          time.Duration
+	ArtifactCacheSize   int
 }
 
 func loadDotEnv() (string, bool) {
@@ -98,7 +103,6 @@ func Load() (*Config, error) {
 	}
 
 	templatesDir := getEnvOrDefault("TEMPLATES_DIR", "../templates")
-	workspaceDir := getEnvOrDefault("WORKSPACE_DIR", "../workspace")
 	port := getEnvOrDefault("PORT", "8081")
 
 	kafkaBootstrap := getEnvOrDefault("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
@@ -116,10 +120,30 @@ func Load() (*Config, error) {
 
 	kafkaGroupID := getEnvOrDefault("GROUP_ID", "devforge-go-provisioner")
 
+	concurrency, err := positiveIntEnv("PROVISION_CONCURRENCY", 4)
+	if err != nil {
+		return nil, err
+	}
+	perInstallation, err := positiveIntEnv("PROVISION_PER_INSTALLATION", 2)
+	if err != nil {
+		return nil, err
+	}
+	partitions, err := positiveIntEnv("KAFKA_PARTITIONS", 12)
+	if err != nil {
+		return nil, err
+	}
+	cacheSize, err := positiveIntEnv("TEMPLATE_ARTIFACT_CACHE", 64)
+	if err != nil {
+		return nil, err
+	}
+	jobTimeout, err := time.ParseDuration(getEnvOrDefault("PROVISION_JOB_TIMEOUT", "3m"))
+	if err != nil || jobTimeout <= 0 {
+		return nil, fmt.Errorf("PROVISION_JOB_TIMEOUT must be a positive duration such as 3m")
+	}
+
 	return &Config{
 		Port:                port,
 		TemplatesDir:        templatesDir,
-		WorkspaceDir:        workspaceDir,
 		GithubAppID:         ghAppID,
 		GithubAppPrivateKey: ghPrivateKey,
 		KafkaBrokers:        brokers,
@@ -128,7 +152,24 @@ func Load() (*Config, error) {
 		KafkaGroupID:        kafkaGroupID,
 		BackendInternalURL:  getEnvOrDefault("BACKEND_INTERNAL_URL", "http://backend:8080/api/v1"),
 		InternalAPIToken:    os.Getenv("INTERNAL_API_TOKEN"),
+		Concurrency:         concurrency,
+		PerInstallation:     perInstallation,
+		Partitions:          partitions,
+		JobTimeout:          jobTimeout,
+		ArtifactCacheSize:   cacheSize,
 	}, nil
+}
+
+func positiveIntEnv(key string, fallback int) (int, error) {
+	raw := os.Getenv(key)
+	if raw == "" {
+		return fallback, nil
+	}
+	val, err := strconv.Atoi(raw)
+	if err != nil || val < 1 {
+		return 0, fmt.Errorf("%s must be a positive integer, got %q", key, raw)
+	}
+	return val, nil
 }
 
 func getEnvOrDefault(key, fallback string) string {

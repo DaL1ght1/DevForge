@@ -10,10 +10,6 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.stereotype.Component;
 
-/**
- * One-time {@code state} values for the GitHub authorize/install redirect, binding the callback to
- * the DevForge user and workspace that started it. In memory, like {@link OAuth2TicketStore}.
- */
 @Component
 public class GithubLinkStateStore {
 

@@ -1,0 +1,18 @@
+package [[ .PackageName ]];
+
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.SpringBootTest;
+[[- if or (has "database") (has "messaging") ]]
+import org.springframework.context.annotation.Import;
+[[- end ]]
+
+@SpringBootTest
+[[- if or (has "database") (has "messaging") ]]
+@Import(TestcontainersConfiguration.class)
+[[- end ]]
+class [[ .ClassName ]]ApplicationTests {
+
+    @Test
+    void contextLoads() {
+    }
+}

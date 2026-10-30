@@ -5,12 +5,19 @@ import {
   TemplateFilter,
   TemplateFramework,
   TemplateLanguage,
+  TemplateOptionsResponse,
   TemplateSynchronizationResult,
 } from "@/types/api";
 
 export const templatesApi = {
   sync(): Promise<TemplateSynchronizationResult> {
     return api.post<TemplateSynchronizationResult>("/admin/templates/sync");
+  },
+
+  options(id: string): Promise<TemplateOptionsResponse> {
+    return api.get<TemplateOptionsResponse>(
+      `/templates/${encodeURIComponent(id)}/options`,
+    );
   },
 
   list(page = 0, size = 50): Promise<Page<AppTemplateResponse>> {

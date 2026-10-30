@@ -1,62 +1,60 @@
 package com.example.devforge.service.implementation;
 
 import com.example.devforge.client.ProvisionerClient;
-import com.example.devforge.config.kafka.KafkaProperties;
-import com.example.devforge.dto.ProvisionRequestedEvent;
 import com.example.devforge.entity.AppService;
+import com.example.devforge.entity.Application;
 import com.example.devforge.entity.ProvisioningJob;
 import com.example.devforge.entity.ProvisioningStatus;
 import com.example.devforge.entity.ServiceStatus;
 import com.example.devforge.repository.AppServiceRepository;
+import com.example.devforge.repository.ApplicationRepository;
 import com.example.devforge.repository.ProvisioningJobRepository;
 import com.example.devforge.service.KafkaService;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.event.TransactionPhase;
-import org.springframework.transaction.event.TransactionalEventListener;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class KafkaServiceImplementation implements KafkaService {
 
+  private static final long SEND_TIMEOUT_SECONDS = 10;
   private static final Set<ProvisioningStatus> TERMINAL =
       Set.of(ProvisioningStatus.COMPLETED, ProvisioningStatus.FAILED);
 
-  private final KafkaProperties kafkaProperties;
   private final KafkaTemplate<String, ProvisionerClient.ProvisionRequest> kafkaTemplate;
   private final AppServiceRepository appServiceRepository;
+  private final ApplicationRepository applicationRepository;
   private final ProvisioningJobRepository provisioningJobRepository;
 
-  @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-  @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public void sendProvisionRequest(ProvisionRequestedEvent event) {
-    ProvisionerClient.ProvisionRequest provisionRequest = event.request();
-    provisioningJobRepository
-        .findById(provisionRequest.jobId())
-        .ifPresent(
-            job -> {
-              job.setStatus(ProvisioningStatus.GENERATING);
-              job.setAttempt(job.getAttempt() + 1);
-              job.setStartedAt(Instant.now());
-              provisioningJobRepository.save(job);
-            });
+  @Override
+  public void sendProvisionRequest(
+      String topic, String key, ProvisionerClient.ProvisionRequest provisionRequest) {
     log.info(
         "Sending provision request to topic [{}] for service [{}] (ID: {}, job: {})",
-        kafkaProperties.requestTopic(),
+        topic,
         provisionRequest.serviceName(),
         provisionRequest.serviceId(),
         provisionRequest.jobId());
-    kafkaTemplate.send(
-        kafkaProperties.requestTopic(), provisionRequest.serviceId().toString(), provisionRequest);
+    try {
+      kafkaTemplate.send(topic, key, provisionRequest).get(SEND_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException("Interrupted while sending provision request", e);
+    } catch (ExecutionException | TimeoutException e) {
+      throw new IllegalStateException("Kafka send failed: " + e.getMessage(), e);
+    }
   }
 
   @KafkaListener(
@@ -100,6 +98,10 @@ public class KafkaServiceImplementation implements KafkaService {
       log.info("Ignoring duplicate response for finished job {}", job.getId());
       return;
     }
+    if (job.getApplication() != null) {
+      completeApplication(job, response);
+      return;
+    }
     if ("COMPLETED".equalsIgnoreCase(response.status())) {
       service.setStatus(ServiceStatus.PUSHED);
       service.setRepositoryUrl(response.repositoryUrl());
@@ -121,7 +123,43 @@ public class KafkaServiceImplementation implements KafkaService {
         service.getRepositoryUrl());
   }
 
-  /** Responses with a job ID must match that exact job; legacy responses use the latest job. */
+  private void completeApplication(
+      ProvisioningJob job, ProvisionerClient.ProvisionResponse response) {
+    Application application = job.getApplication();
+    boolean completed = "COMPLETED".equalsIgnoreCase(response.status());
+    application.setStatus(completed ? ServiceStatus.PUSHED : ServiceStatus.FAILED);
+    if (completed) {
+      application.setRepositoryUrl(response.repositoryUrl());
+      application.setRepositoryId(response.repositoryId());
+      job.setStatus(ProvisioningStatus.COMPLETED);
+    } else {
+      application.setFailureReason(response.errorMessage());
+      job.setStatus(ProvisioningStatus.FAILED);
+      job.setErrorMessage(response.errorMessage());
+    }
+    List<AppService> services =
+        appServiceRepository.findAllByApplicationIdOrderByPort(application.getId());
+    for (AppService service : services) {
+      service.setStatus(application.getStatus());
+      if (completed) {
+        service.setRepositoryUrl(
+            response.repositoryUrl() + "/tree/main/services/" + service.getName());
+        service.setRepositoryId(response.repositoryId());
+      } else {
+        service.setFailureReason(response.errorMessage());
+      }
+    }
+    job.setCompletedAt(Instant.now());
+    provisioningJobRepository.save(job);
+    applicationRepository.save(application);
+    appServiceRepository.saveAll(services);
+    log.info(
+        "Application [{}] updated to status [{}] with repo [{}]",
+        application.getName(),
+        application.getStatus(),
+        application.getRepositoryUrl());
+  }
+
   private Optional<ProvisioningJob> findJob(ProvisionerClient.ProvisionResponse response) {
     if (response.jobId() == null) {
       return provisioningJobRepository.findTopByServiceIdOrderByCreatedAtDesc(response.serviceId());

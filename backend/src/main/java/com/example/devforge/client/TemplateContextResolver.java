@@ -82,8 +82,7 @@ public class TemplateContextResolver {
     String packageName = BASE_PACKAGE + "." + sanitizedPkg;
     String packagePath = packageName.replace('.', '/');
 
-    return new TemplateContext(
-        serviceName, className, packageName, packagePath, dto.description(), dto.databaseType());
+    return new TemplateContext(serviceName, className, packageName, packagePath, dto.description());
   }
 
   private String toPascalCase(String input) {

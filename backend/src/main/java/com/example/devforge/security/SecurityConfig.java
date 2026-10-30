@@ -47,7 +47,12 @@ public class SecurityConfig {
                         "/auth/oauth2/signup/pending",
                         "/auth/oauth2/signup/complete",
                         "/github/webhooks",
-                        "/internal/provisioning/jobs/*/user-token")
+                        "/internal/provisioning/jobs/*/user-token",
+                        "/internal/provisioning/jobs/*/claim")
+                    .permitAll()
+                    .requestMatchers(HttpMethod.PUT, "/internal/provisioning/jobs/*/repository")
+                    .permitAll()
+                    .requestMatchers(HttpMethod.GET, "/internal/templates/artifacts/*")
                     .permitAll()
                     .requestMatchers(
                         HttpMethod.GET,

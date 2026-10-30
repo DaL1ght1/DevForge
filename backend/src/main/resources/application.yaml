@@ -58,6 +58,15 @@ springdoc:
 
 
 devforge:
+  preview:
+    provisioner-url: ${PROVISIONER_URL:http://localhost:8081}
+    timeout: ${PREVIEW_TIMEOUT:15s}
+    ttl: ${PREVIEW_TTL:10m}
+    max-entries: ${PREVIEW_CACHE_SIZE:200}
+    max-concurrent: ${PREVIEW_MAX_CONCURRENT:8}
+    queue-timeout: 2s
+  outbox:
+    poll-interval: ${OUTBOX_POLL_INTERVAL:2s}
   admin:
     username: ${DEVFORGE_ADMIN_USERNAME}
     email: ${DEVFORGE_ADMIN_EMAIL}
@@ -73,7 +82,7 @@ devforge:
       topics:
         requestTopic: ${REQUEST_TOPIC}-requestTopic
         responseTopic: ${RESPONSE_TOPIC}-responseTopic
-        partitions: 1
+        partitions: ${KAFKA_PARTITIONS:12}
         replicas: 1
       group:
         id: ${GROUP_ID}-group

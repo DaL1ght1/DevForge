@@ -1,5 +1,11 @@
 import { api } from "./client";
-import { AppServiceCreationDto, AppServiceResponse, Page } from "@/types/api";
+import {
+  AppServiceCreationDto,
+  AppServiceResponse,
+  Page,
+  PreviewFileResponse,
+  ServicePreviewResponse,
+} from "@/types/api";
 
 export const servicesApi = {
   list(
@@ -21,6 +27,26 @@ export const servicesApi = {
 
   create(dto: AppServiceCreationDto): Promise<AppServiceResponse> {
     return api.post<AppServiceResponse>("/services", dto);
+  },
+
+  preview(
+    dto: AppServiceCreationDto,
+    signal?: AbortSignal,
+  ): Promise<ServicePreviewResponse> {
+    return api.post<ServicePreviewResponse>("/services/preview", dto, {
+      signal,
+    });
+  },
+
+  previewFile(
+    previewId: string,
+    path: string,
+    signal?: AbortSignal,
+  ): Promise<PreviewFileResponse> {
+    return api.get<PreviewFileResponse>(
+      `/services/preview/${encodeURIComponent(previewId)}/file?path=${encodeURIComponent(path)}`,
+      { signal },
+    );
   },
 
   delete(id: string): Promise<void> {

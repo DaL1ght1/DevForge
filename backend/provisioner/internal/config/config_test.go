@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -26,7 +27,6 @@ func TestLoadAppliesDefaultsAndNormalizesTopics(t *testing.T) {
 	setGitHubAppEnvironment(t)
 	t.Setenv("GITHUB_OWNER", "owner")
 	t.Setenv("TEMPLATES_DIR", "")
-	t.Setenv("WORKSPACE_DIR", "")
 	t.Setenv("PORT", "")
 	t.Setenv("KAFKA_BOOTSTRAP_SERVERS", "broker-1:9092,broker-2:9092")
 	t.Setenv("REQUEST_TOPIC", "requests")
@@ -38,7 +38,7 @@ func TestLoadAppliesDefaultsAndNormalizesTopics(t *testing.T) {
 		t.Fatalf("Load failed: %v", err)
 	}
 
-	if cfg.Port != "8081" || cfg.TemplatesDir != "../templates" || cfg.WorkspaceDir != "../workspace" {
+	if cfg.Port != "8081" || cfg.TemplatesDir != "../templates" || cfg.Concurrency != 4 || cfg.PerInstallation != 2 || cfg.Partitions != 12 {
 		t.Fatalf("unexpected defaults: %+v", cfg)
 	}
 	if cfg.RequestTopic != "requests-requestTopic" || cfg.ResponseTopic != "responses-responseTopic" {
@@ -137,4 +137,20 @@ func setGitHubAppEnvironment(t *testing.T) {
 	t.Setenv("GITHUB_APP_PRIVATE_KEY_PATH", "")
 	t.Setenv("INTERNAL_API_TOKEN", "")
 	t.Setenv("BACKEND_INTERNAL_URL", "")
+}
+
+func TestLoadRejectsInvalidConcurrencySettings(t *testing.T) {
+	for key, value := range map[string]string{
+		"PROVISION_CONCURRENCY":      "0",
+		"PROVISION_PER_INSTALLATION": "many",
+		"PROVISION_JOB_TIMEOUT":      "-1s",
+	} {
+		t.Run(key, func(t *testing.T) {
+			setGitHubAppEnvironment(t)
+			t.Setenv(key, value)
+			if _, err := Load(); err == nil || !strings.Contains(err.Error(), key) {
+				t.Fatalf("expected %s error, got %v", key, err)
+			}
+		})
+	}
 }

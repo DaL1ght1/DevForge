@@ -1,8 +1,8 @@
 package com.example.devforge.service;
 
-import com.example.devforge.dto.ProvisionRequestedEvent;
+import com.example.devforge.client.ProvisionerClient;
 
 public interface KafkaService {
 
-  void sendProvisionRequest(ProvisionRequestedEvent event);
+  void sendProvisionRequest(String topic, String key, ProvisionerClient.ProvisionRequest request);
 }

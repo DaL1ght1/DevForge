@@ -30,12 +30,20 @@ import {
 } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { DestinationNotice } from "@/components/workspace/DestinationNotice";
+import { ServicePreview } from "@/components/services/ServicePreview";
+import { TemplateOptionsForm } from "@/components/services/TemplateOptionsForm";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { ApiClientError } from "@/lib/api/client";
 import { GITHUB_NOT_CONNECTED, githubApi } from "@/lib/api/github";
 import { servicesApi } from "@/lib/api/services";
 import { templatesApi } from "@/lib/api/templates";
-import { AppTemplateResponse } from "@/types/api";
+import {
+  FeatureSelection,
+  initialVariables,
+  selectedLabels,
+  selectionErrors,
+} from "@/lib/templateSelection";
+import { AppTemplateResponse, TemplateOptionsResponse } from "@/types/api";
 import { cn } from "@/lib/utils";
 
 function formatIdentifier(text?: string): string {
@@ -61,7 +69,13 @@ export default function NewServicePage() {
   const [selectedBuildTool, setSelectedBuildTool] = useState<string>("");
   const [serviceName, setServiceName] = useState("");
   const [description, setDescription] = useState("");
-  const [databaseType, setDatabaseType] = useState("");
+  const [loadedOptions, setLoadedOptions] = useState<{
+    templateId: string;
+    options: TemplateOptionsResponse | null;
+    error: string | null;
+  } | null>(null);
+  const [variables, setVariables] = useState<Record<string, string>>({});
+  const [features, setFeatures] = useState<FeatureSelection>({});
   const [isProvisioning, setIsProvisioning] = useState(false);
   const [provisionError, setProvisionError] = useState<string | null>(null);
   const [githubNotConnected, setGithubNotConnected] = useState(false);
@@ -117,7 +131,6 @@ export default function NewServicePage() {
           if (first.language) setSelectedLanguage(first.language);
           if (first.framework) setSelectedFramework(first.framework);
           if (first.buildTool) setSelectedBuildTool(first.buildTool);
-          if (first.databaseType) setDatabaseType(first.databaseType);
         }
       } catch (err: unknown) {
         if (cancelled) return;
@@ -202,9 +215,6 @@ export default function NewServicePage() {
         if (tools.length > 0 && tools[0]) {
           setSelectedBuildTool(tools[0]);
         }
-        if (list[0].databaseType && !databaseType) {
-          setDatabaseType(list[0].databaseType);
-        }
       }
     } catch (e) {
       console.warn("Backend by-languages query fallback to local cache", e);
@@ -212,9 +222,6 @@ export default function NewServicePage() {
       if (matchingFws.length > 0) {
         setSelectedFramework(matchingFws[0].framework || "");
         setSelectedBuildTool(matchingFws[0].buildTool || "");
-        if (matchingFws[0].databaseType && !databaseType) {
-          setDatabaseType(matchingFws[0].databaseType);
-        }
       }
     }
   };
@@ -231,37 +238,94 @@ export default function NewServicePage() {
         if (tools.length > 0 && tools[0]) {
           setSelectedBuildTool(tools[0]);
         }
-        if (list[0].databaseType && !databaseType) {
-          setDatabaseType(list[0].databaseType);
-        }
       }
     } catch (e) {
       console.warn("Backend by-framework query fallback to local cache", e);
       const matchingTools = languageTemplates.filter((t) => t.framework === fw);
       if (matchingTools.length > 0) {
         setSelectedBuildTool(matchingTools[0].buildTool || "");
-        if (matchingTools[0].databaseType && !databaseType) {
-          setDatabaseType(matchingTools[0].databaseType);
-        }
       }
     }
   };
 
   const handleSelectBuildTool = async (tool: string) => {
     setSelectedBuildTool(tool);
-    try {
-      const res = await templatesApi.filter({
-        framework: selectedFramework,
-        buildTool: tool,
-      });
-      const list = res.content || [];
-      if (list.length > 0 && list[0].databaseType && !databaseType) {
-        setDatabaseType(list[0].databaseType);
-      }
-    } catch (e) {
-      console.warn("Backend filter query fallback to local cache", e);
-    }
   };
+
+  const matchedTemplateId = matchedTemplate
+    ? matchedTemplate.templateVersionId || matchedTemplate.id
+    : null;
+  useEffect(() => {
+    if (!matchedTemplateId) return;
+    let cancelled = false;
+    templatesApi
+      .options(matchedTemplateId)
+      .then((opts) => {
+        if (cancelled) return;
+        setLoadedOptions({
+          templateId: matchedTemplateId,
+          options: opts,
+          error: null,
+        });
+        setVariables(initialVariables(opts));
+        setFeatures({});
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setLoadedOptions({
+          templateId: matchedTemplateId,
+          options: null,
+          error:
+            err instanceof Error
+              ? err.message
+              : "Failed to load template options",
+        });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [matchedTemplateId]);
+  const current =
+    loadedOptions?.templateId === matchedTemplateId ? loadedOptions : null;
+  const templateOptions = current?.options ?? null;
+  const optionsError = current?.error ?? null;
+
+  const optionErrors = useMemo(
+    () =>
+      templateOptions
+        ? selectionErrors(templateOptions, variables, features)
+        : [],
+    [templateOptions, variables, features],
+  );
+  const chosenFeatures = templateOptions
+    ? selectedLabels(templateOptions, features)
+    : [];
+  const previewRequest = useMemo(
+    () =>
+      currentStep === 5 &&
+      matchedTemplateId &&
+      templateOptions &&
+      optionErrors.length === 0 &&
+      /^[a-z0-9-]{3,20}$/.test(serviceName)
+        ? {
+            name: serviceName,
+            description: description || undefined,
+            templateVersionId: matchedTemplateId,
+            variables,
+            features,
+          }
+        : null,
+    [
+      currentStep,
+      matchedTemplateId,
+      templateOptions,
+      optionErrors,
+      serviceName,
+      description,
+      variables,
+      features,
+    ],
+  );
 
   const handleNameChange = (val: string) => {
     const clean = val
@@ -299,7 +363,7 @@ export default function NewServicePage() {
     {
       id: 4,
       label: "Specifications",
-      summary: serviceName || "Name & Database",
+      summary: serviceName || "Name & Features",
       description: "Service metadata",
     },
     {
@@ -330,8 +394,8 @@ export default function NewServicePage() {
         name: serviceName,
         description: description || undefined,
         templateVersionId: versionIdToSend,
-        databaseType:
-          databaseType || matchedTemplate.databaseType || "POSTGRESQL",
+        variables,
+        features,
         workspaceId: activeWorkspace?.id,
       });
 
@@ -361,7 +425,8 @@ export default function NewServicePage() {
         serviceName.trim().length >= 3 &&
         serviceName.trim().length <= 20 &&
         /^[a-z0-9-]{3,20}$/.test(serviceName) &&
-        databaseType.trim().length > 0
+        templateOptions !== null &&
+        optionErrors.length === 0
       );
     }
     return true;
@@ -700,8 +765,8 @@ export default function NewServicePage() {
                     Level 4: Service Architecture & Configuration
                   </h2>
                   <p className="text-xs text-zinc-400 mt-1">
-                    Set service identifiers, storage adapter, and service
-                    description.
+                    Set service identifiers and choose the database, messaging
+                    and extras the template should include.
                   </p>
                 </div>
 
@@ -719,23 +784,50 @@ export default function NewServicePage() {
                       />
 
                       <Input
-                        label="Database Storage"
-                        placeholder="e.g. POSTGRESQL, MYSQL, NONE"
-                        value={databaseType}
-                        onChange={(e) =>
-                          setDatabaseType(e.target.value.toUpperCase())
-                        }
-                        hint="Target database engine"
-                        required
+                        label="Service Description"
+                        placeholder="Brief summary of service responsibilities"
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
                       />
                     </div>
+                  </CardContent>
+                </Card>
 
-                    <Input
-                      label="Service Description"
-                      placeholder="Brief summary of service responsibilities and domain logic"
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                    />
+                <Card className="border-zinc-800 bg-zinc-900/60">
+                  <CardHeader className="pb-3 border-b border-zinc-800/80">
+                    <CardTitle className="text-sm text-zinc-100 flex items-center gap-2">
+                      <Layers className="h-4 w-4 text-sky-400" />
+                      Template Options
+                    </CardTitle>
+                    <CardDescription>
+                      Offered by {matchedTemplate?.name ?? "the template"}
+                      {templateOptions ? ` v${templateOptions.version}` : ""}.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-6 space-y-4">
+                    {optionsError ? (
+                      <ErrorAlert error={optionsError} />
+                    ) : !templateOptions ? (
+                      <div className="flex items-center gap-2 text-xs text-zinc-400">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Loading template options...
+                      </div>
+                    ) : (
+                      <TemplateOptionsForm
+                        options={templateOptions}
+                        variables={variables}
+                        features={features}
+                        onVariablesChange={setVariables}
+                        onFeaturesChange={setFeatures}
+                      />
+                    )}
+                    {optionErrors.length > 0 && (
+                      <ul className="space-y-1 text-xs text-amber-300">
+                        {optionErrors.map((e) => (
+                          <li key={e}>{e}</li>
+                        ))}
+                      </ul>
+                    )}
                   </CardContent>
                 </Card>
               </div>
@@ -834,14 +926,44 @@ export default function NewServicePage() {
                         </span>
                       </div>
 
-                      <div className="p-3 rounded-lg border border-zinc-800 bg-zinc-950/60">
-                        <span className="text-[10px] uppercase tracking-wider text-zinc-500 block mb-1">
-                          Database
+                      {Object.entries(variables).map(([name, value]) => (
+                        <div
+                          key={name}
+                          className="p-3 rounded-lg border border-zinc-800 bg-zinc-950/60"
+                        >
+                          <span className="text-[10px] uppercase tracking-wider text-zinc-500 block mb-1">
+                            {templateOptions?.variables.find(
+                              (v) => v.name === name,
+                            )?.label ?? name}
+                          </span>
+                          <span className="font-mono text-zinc-200">
+                            {value}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="p-3 rounded-lg border border-zinc-800 bg-zinc-950/60 text-xs">
+                      <span className="text-[10px] uppercase tracking-wider text-zinc-500 block mb-2">
+                        Features
+                      </span>
+                      {chosenFeatures.length === 0 ? (
+                        <span className="text-zinc-400">
+                          None, base template only
                         </span>
-                        <span className="font-mono text-zinc-200">
-                          {databaseType}
-                        </span>
-                      </div>
+                      ) : (
+                        <div className="flex flex-wrap gap-1.5">
+                          {chosenFeatures.map((f) => (
+                            <Badge
+                              key={`${f.group}-${f.option}`}
+                              variant="info"
+                              size="sm"
+                            >
+                              {f.group}: {f.option}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     {description && (
@@ -861,12 +983,34 @@ export default function NewServicePage() {
                           Live catalog
                         </Badge>
                       </div>
-                      <pre className="mt-3 overflow-x-auto whitespace-pre-wrap rounded-md border border-zinc-800 bg-zinc-950/70 p-3 text-[11px] leading-relaxed text-zinc-300">{`name: ${matchedTemplate?.name || "unavailable"}\nlanguage: ${matchedTemplate?.language || "unavailable"}\nframework: ${matchedTemplate?.framework || "unavailable"}\nbuildTool: ${matchedTemplate?.buildTool || "unavailable"}\n                          databaseType: ${databaseType || matchedTemplate?.databaseType || "unavailable"}`}</pre>
+                      <pre className="mt-3 overflow-x-auto whitespace-pre-wrap rounded-md border border-zinc-800 bg-zinc-950/70 p-3 text-[11px] leading-relaxed text-zinc-300">{`name: ${matchedTemplate?.name || "unavailable"}\nlanguage: ${matchedTemplate?.language || "unavailable"}\nframework: ${matchedTemplate?.framework || "unavailable"}\nbuildTool: ${matchedTemplate?.buildTool || "unavailable"}\nversion: ${templateOptions?.version || "unavailable"}${Object.entries(
+                        features,
+                      )
+                        .map(
+                          ([group, opts]) => `\n${group}: [${opts.join(", ")}]`,
+                        )
+                        .join("")}`}</pre>
                       <p className="mt-2 text-[11px] text-zinc-500">
                         This preview contains the manifest fields exposed by the
                         backend catalog. No client-side template data is used.
                       </p>
                     </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-zinc-800 bg-zinc-900/60">
+                  <CardHeader className="pb-3 border-b border-zinc-800/80">
+                    <CardTitle className="text-sm text-zinc-100 flex items-center gap-2">
+                      <Code2 className="h-4 w-4 text-sky-400" />
+                      Repository Preview
+                    </CardTitle>
+                    <CardDescription>
+                      The exact files that will be pushed, rendered by the
+                      provisioner from this template version.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-4">
+                    <ServicePreview kind="service" request={previewRequest} />
                   </CardContent>
                 </Card>
               </div>

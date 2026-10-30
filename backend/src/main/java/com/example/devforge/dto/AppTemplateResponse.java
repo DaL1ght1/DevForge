@@ -12,5 +12,4 @@ public record AppTemplateResponse(
     TemplateLanguage language,
     TemplateFramework framework,
     BuildTool buildTool,
-    String databaseType,
     Instant createdAt) {}

@@ -34,6 +34,13 @@ public class ProvisioningJob {
   @Column(name = "installation_id")
   private Long installationId;
 
+  @Column(name = "repository_id")
+  private Long repositoryId;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "application_id")
+  private Application application;
+
   @Column(name = "error_message", length = 2000)
   private String errorMessage;
 

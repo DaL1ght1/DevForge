@@ -2,6 +2,8 @@ package com.example.devforge.client;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.JsonNode;
@@ -18,13 +20,17 @@ class ProvisionerContractTest {
             ProvisionerClient.CONTRACT_VERSION,
             UUID.randomUUID(),
             UUID.randomUUID(),
+            null,
             "billing",
             "spring",
             "1.0.0",
+            "f".repeat(64),
             "com.acme.billing",
             "Billing",
             "d",
-            "POSTGRESQL",
+            Map.of("JAVA_VERSION", "21"),
+            Map.of("database", List.of("postgresql")),
+            null,
             123456789012L,
             "acme",
             "Organization",
@@ -37,18 +43,23 @@ class ProvisionerContractTest {
             "contractVersion",
             "jobId",
             "serviceId",
+            "applicationId",
             "serviceName",
             "templateName",
             "templateVersion",
+            "artifactDigest",
             "packageName",
             "className",
             "description",
-            "databaseType",
+            "variables",
+            "features",
+            "services",
             "installationId",
             "ownerLogin",
             "ownerType",
             "visibility");
     assertThat(json.get("installationId").asLong()).isEqualTo(123456789012L);
+    assertThat(json.get("features").get("database").get(0).asString()).isEqualTo("postgresql");
   }
 
   @Test

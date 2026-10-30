@@ -16,22 +16,20 @@ class TemplateContextResolverEdgeCasesTest {
   void normalizesWhitespaceAndCase() {
     TemplateContext context =
         resolver.resolve(
-            new AppServiceCreationDto("  Billing_API  ", "billing", UUID.randomUUID(), "NONE"));
+            new AppServiceCreationDto("  Billing_API  ", "billing", UUID.randomUUID()));
 
     assertThat(context.serviceName()).isEqualTo("billing_api");
     assertThat(context.className()).isEqualTo("BillingApi");
     assertThat(context.packageName()).isEqualTo("com.devforge.billingapi");
     assertThat(context.asMap())
         .containsEntry("SERVICE_NAME", "billing_api")
-        .containsEntry("DATABASE_TYPE", "NONE");
+        .containsEntry("DESCRIPTION", "billing");
   }
 
   @Test
   void convertsMixedSeparatorsToPascalCase() {
     TemplateContext context =
-        resolver.resolve(
-            new AppServiceCreationDto(
-                "order-processing_v2", null, UUID.randomUUID(), "POSTGRESQL"));
+        resolver.resolve(new AppServiceCreationDto("order-processing_v2", null, UUID.randomUUID()));
 
     assertThat(context.className()).isEqualTo("OrderProcessingV2");
     assertThat(context.packagePath()).isEqualTo("com/devforge/orderprocessingv2");
@@ -43,7 +41,7 @@ class TemplateContextResolverEdgeCasesTest {
 
     TemplateContext context =
         resolver.resolve(
-            new AppServiceCreationDto("invoice-service", description, UUID.randomUUID(), "MYSQL"));
+            new AppServiceCreationDto("invoice-service", description, UUID.randomUUID()));
 
     assertThat(context.description()).isEqualTo(description);
   }
@@ -51,9 +49,9 @@ class TemplateContextResolverEdgeCasesTest {
   @Test
   void protectsGeneratedJavaIdentifiers() {
     TemplateContext numeric =
-        resolver.resolve(new AppServiceCreationDto("123-service", null, UUID.randomUUID(), "NONE"));
+        resolver.resolve(new AppServiceCreationDto("123-service", null, UUID.randomUUID()));
     TemplateContext keyword =
-        resolver.resolve(new AppServiceCreationDto("class", null, UUID.randomUUID(), "NONE"));
+        resolver.resolve(new AppServiceCreationDto("class", null, UUID.randomUUID()));
 
     assertThat(numeric.packageName()).isEqualTo("com.devforge.service123service");
     assertThat(numeric.className()).isEqualTo("App123Service");

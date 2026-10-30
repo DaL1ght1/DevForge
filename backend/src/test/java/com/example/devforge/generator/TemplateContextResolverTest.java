@@ -15,8 +15,7 @@ class TemplateContextResolverTest {
   @Test
   void shouldResolveKebabCaseServiceCorrectly() {
     AppServiceCreationDto dto =
-        new AppServiceCreationDto(
-            "payment-service", "Handles payment checkout", UUID.randomUUID(), "POSTGRESQL");
+        new AppServiceCreationDto("payment-service", "Handles payment checkout", UUID.randomUUID());
 
     TemplateContext context = resolver.resolve(dto);
 

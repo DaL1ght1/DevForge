@@ -14,8 +14,9 @@ public record TemplateData(
     TemplateLanguage language,
     TemplateFramework framework,
     BuildTool buildTool,
-    String databaseType,
     String manifest,
     String hash,
-    String relativePath)
+    String relativePath,
+    String artifactDigest,
+    byte[] artifactData)
     implements Serializable {}

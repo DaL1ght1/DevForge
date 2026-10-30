@@ -4,12 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
 
+	"devforge/provisioner/internal/generator"
 	"devforge/provisioner/internal/git"
 	"devforge/provisioner/internal/github"
 	"devforge/provisioner/internal/model"
@@ -17,9 +16,8 @@ import (
 
 type fakeGenerator struct{}
 
-func (fakeGenerator) Generate(req model.GenerationRequest, outputDir string) (string, error) {
-	dir := filepath.Join(outputDir, req.ServiceName)
-	return dir, os.MkdirAll(dir, 0o755)
+func (fakeGenerator) Render(_ context.Context, req model.GenerationRequest) (*generator.Project, error) {
+	return &generator.Project{Files: []generator.File{{Path: "README.md", Content: []byte(req.ServiceName), Mode: 0o644}}}, nil
 }
 
 type createCall struct{ owner, ownerType, name string }
@@ -28,10 +26,12 @@ type fakeClient struct {
 	name      string
 	createErr error
 	repoID    int64
+	existing  *github.Repository
 
 	mu      sync.Mutex
 	creates []createCall
 	deletes []int64
+	gets    int
 }
 
 func (c *fakeClient) CreateRepository(_ context.Context, owner, ownerType, name, _ string, _ bool) (*github.Repository, error) {
@@ -46,6 +46,16 @@ func (c *fakeClient) CreateRepository(_ context.Context, owner, ownerType, name,
 		CloneURL: fmt.Sprintf("https://github.com/%s/%s.git", owner, name),
 		HTMLURL:  fmt.Sprintf("https://github.com/%s/%s", owner, name),
 	}, nil
+}
+
+func (c *fakeClient) GetRepository(_ context.Context, _, _ string) (*github.Repository, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.gets++
+	if c.existing == nil {
+		return nil, github.ErrRepositoryNotFound
+	}
+	return c.existing, nil
 }
 
 func (c *fakeClient) DeleteRepository(_ context.Context, _, _ string, expectedID int64) error {
@@ -72,7 +82,10 @@ func (f *fakeFactory) ForInstallation(id int64) (RepoClient, git.TokenSource, er
 	return c, git.StaticToken(fmt.Sprintf("inst-token-%d", id)), nil
 }
 
-type push struct{ url, token string }
+type push struct {
+	url, token string
+	force      bool
+}
 
 type fakePusher struct {
 	err    error
@@ -80,10 +93,10 @@ type fakePusher struct {
 	pushes []push
 }
 
-func (p *fakePusher) PushDirectory(ctx context.Context, _, remoteURL string, tokens git.TokenSource) error {
+func (p *fakePusher) PushProject(ctx context.Context, _ *generator.Project, remoteURL string, tokens git.TokenSource, force bool) error {
 	token, _ := tokens.Token(ctx)
 	p.mu.Lock()
-	p.pushes = append(p.pushes, push{remoteURL, token})
+	p.pushes = append(p.pushes, push{remoteURL, token, force})
 	p.mu.Unlock()
 	return p.err
 }
@@ -114,8 +127,7 @@ func request(job string, installation int64, owner, ownerType string) model.Prov
 func newTestWorker(t *testing.T, deps Dependencies) *ProvisionWorker {
 	t.Helper()
 	deps.Generator = fakeGenerator{}
-	deps.Workspace = t.TempDir()
-	return &ProvisionWorker{deps: deps}
+	return newWorker(nil, nil, deps)
 }
 
 func TestConcurrentJobsForDifferentInstallationsStayIsolated(t *testing.T) {
@@ -255,5 +267,15 @@ func TestPushFailureDeletesOnlyTheCreatedRepository(t *testing.T) {
 
 	if resp.Status != "FAILED" || len(client.deletes) != 1 || client.deletes[0] != 77 {
 		t.Fatalf("expected cleanup of repo 77 only, got %+v deletes=%v", resp, client.deletes)
+	}
+}
+
+func TestContractVersionsWithinSupportedRangeAreAccepted(t *testing.T) {
+	for version, ok := range map[int]bool{1: false, 2: true, 3: true, 4: true, 5: false} {
+		req := request("v", 100, "acme", model.OwnerTypeOrganization)
+		req.ContractVersion = version
+		if err := validateRequest(req); (err == nil) != ok {
+			t.Fatalf("contract version %d: err = %v, want accepted=%v", version, err, ok)
+		}
 	}
 }

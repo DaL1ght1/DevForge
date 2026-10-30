@@ -120,8 +120,6 @@ services:
       - .env
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      TEMPLATES_DIR: /app/templates
-      WORKSPACE_DIR: /app/workspace
       PORT: 8081
       GITHUB_APP_PRIVATE_KEY_PATH: /run/secrets/github_app_key
     secrets:
@@ -131,10 +129,9 @@ services:
         condition: service_healthy
     ports:
       - '8081:8081'
-    volumes:
-      - provisioner-workspace:/app/workspace
     networks:
       - devForge
+
   smee:
     image: node:22-alpine
     command: npx --yes smee-client -u ${SMEE_URL} -t http://backend:8080/api/v1/github/webhooks
@@ -146,7 +143,7 @@ services:
 
 secrets:
   github_app_key:
-    file: ./dev-f0rge.2026-10-29.private-key.pem
+    file: ${GITHUB_APP_KEY_FILE}
 
 networks:
   devForge:
@@ -156,4 +153,3 @@ volumes:
   keycloak-db-data:
   pgdata:
   kafka-data:
-  provisioner-workspace:

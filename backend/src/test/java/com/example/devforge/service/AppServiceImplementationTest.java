@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
 import com.example.devforge.client.ProvisionerClient;
+import com.example.devforge.client.ServiceBlueprintResolver;
 import com.example.devforge.client.TemplateContextResolver;
 import com.example.devforge.client.model.TemplateContext;
 import com.example.devforge.dto.AppServiceCreationDto;
@@ -32,6 +33,11 @@ import com.example.devforge.repository.ProvisioningJobRepository;
 import com.example.devforge.repository.TemplateVersionRepository;
 import com.example.devforge.repository.UserRepository;
 import com.example.devforge.service.implementation.AppServiceImplementation;
+import com.example.devforge.template.TemplateManifestCache;
+import com.example.devforge.template.TemplateManifestParser;
+import com.example.devforge.template.TemplateSelectionResolver;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -57,18 +63,27 @@ class AppServiceImplementationTest {
       new AppServiceImplementation(
           appServiceRepository,
           userRepository,
-          templateVersionRepository,
           appServiceMapper,
-          contextResolver,
           eventPublisher,
           provisioningJobRepository,
           workspaceService,
-          githubInstallationRepository);
+          githubInstallationRepository,
+          new ServiceBlueprintResolver(
+              templateVersionRepository,
+              new TemplateManifestCache(new TemplateManifestParser()),
+              new TemplateSelectionResolver(),
+              contextResolver));
 
   private final UUID userKeycloakId = UUID.randomUUID();
   private final UUID templateVersionId = UUID.randomUUID();
   private final AppServiceCreationDto dto =
-      new AppServiceCreationDto("demo-service", "A demo", templateVersionId, "POSTGRESQL");
+      new AppServiceCreationDto(
+          "demo-service",
+          "A demo",
+          templateVersionId,
+          null,
+          null,
+          Map.of("database", List.of("postgresql")));
   private TemplateVersion templateVersion;
   private User user;
 
@@ -87,7 +102,30 @@ class AppServiceImplementationTest {
             .id(templateVersionId)
             .template(template)
             .version("1.0.0")
-            .manifest("variables:\n  - name: DATABASE_TYPE\n    options: [POSTGRESQL]")
+            .artifactDigest("a".repeat(64))
+            .manifest(
+                """
+                schemaVersion: 2
+                name: spring
+                version: 1.0.0
+                language: JAVA
+                framework: SPRING_BOOT
+                buildTool: MAVEN
+                variables:
+                  - name: JAVA_VERSION
+                    options: ["21", "25"]
+                    default: "21"
+                features:
+                  - id: database
+                    kind: choice
+                    options:
+                      - id: postgresql
+                      - id: mysql
+                  - id: extras
+                    options:
+                      - id: testcontainers
+                        requires: [database]
+                """)
             .build();
     user = User.builder().keycloakId(userKeycloakId).build();
   }
@@ -99,12 +137,7 @@ class AppServiceImplementationTest {
     mappedService.setId(serviceId);
     TemplateContext context =
         new TemplateContext(
-            dto.name(),
-            "DemoService",
-            "com.devforge.demo",
-            "com/devforge/demo",
-            dto.description(),
-            dto.databaseType());
+            dto.name(), "DemoService", "com.devforge.demo", "com/devforge/demo", dto.description());
 
     when(templateVersionRepository.findById(templateVersionId))
         .thenReturn(Optional.of(templateVersion));
@@ -147,13 +180,17 @@ class AppServiceImplementationTest {
                     ProvisionerClient.CONTRACT_VERSION,
                     jobId,
                     serviceId,
+                    null,
                     "demo-service",
                     "spring",
                     "1.0.0",
+                    "a".repeat(64),
                     "com.devforge.demo",
                     "DemoService",
                     "A demo",
-                    "POSTGRESQL",
+                    Map.of("JAVA_VERSION", "21"),
+                    Map.of("database", List.of("postgresql")),
+                    null,
                     77L,
                     "alice",
                     "User",
@@ -207,14 +244,42 @@ class AppServiceImplementationTest {
   }
 
   @Test
-  void createServiceRejectsDatabaseTypeNotSupportedByTemplate() {
-    AppServiceCreationDto unsupported =
-        new AppServiceCreationDto("demo-service", "A demo", templateVersionId, "MYSQL");
+  void createServiceRejectsOptionNotOfferedByTemplate() {
+    assertRejected(Map.of(), Map.of("database", List.of("mongodb")), "Unknown option mongodb");
+  }
+
+  @Test
+  void createServiceRejectsTwoOptionsInAChoiceGroup() {
+    assertRejected(Map.of(), Map.of("database", List.of("postgresql", "mysql")), "single option");
+  }
+
+  @Test
+  void createServiceRejectsUnmetFeatureRequirement() {
+    assertRejected(
+        Map.of(), Map.of("extras", List.of("testcontainers")), "testcontainers requires database");
+  }
+
+  @Test
+  void createServiceRejectsVariableOutsideOptions() {
+    assertRejected(Map.of("JAVA_VERSION", "8"), Map.of(), "JAVA_VERSION must be one of");
+  }
+
+  @Test
+  void createServiceRejectsReservedVariable() {
+    assertRejected(Map.of("SERVICE_NAME", "x"), Map.of(), "SERVICE_NAME is set by DevForge");
+  }
+
+  private void assertRejected(
+      Map<String, String> variables, Map<String, List<String>> features, String message) {
+    AppServiceCreationDto invalid =
+        new AppServiceCreationDto(
+            "demo-service", "A demo", templateVersionId, null, variables, features);
     when(templateVersionRepository.findById(templateVersionId))
         .thenReturn(Optional.of(templateVersion));
 
-    assertThatThrownBy(() -> service.createService(userKeycloakId, unsupported))
-        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> service.createService(userKeycloakId, invalid))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining(message);
     verifyNoInteractions(userRepository, appServiceRepository, eventPublisher);
   }
 }

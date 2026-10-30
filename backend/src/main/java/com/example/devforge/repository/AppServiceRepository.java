@@ -1,6 +1,7 @@
 package com.example.devforge.repository;
 
 import com.example.devforge.entity.AppService;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.jspecify.annotations.NonNull;
@@ -55,4 +56,6 @@ public interface AppServiceRepository extends JpaRepository<AppService, UUID> {
       @Param("id") UUID id, @Param("keycloakId") UUID keycloakId);
 
   boolean existsByWorkspaceIdAndName(UUID workspaceId, String name);
+
+  List<AppService> findAllByApplicationIdOrderByPort(UUID applicationId);
 }

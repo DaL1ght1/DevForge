@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	gh "github.com/google/go-github/v92/github"
 
@@ -148,5 +149,47 @@ func TestDeleteRepositoryDeletesWhenIDMatches(t *testing.T) {
 	}
 	if !deleted {
 		t.Fatal("expected repository to be deleted")
+	}
+}
+
+func TestSecondaryRateLimitIsRetriedAfterRetryAfter(t *testing.T) {
+	calls := 0
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /orgs/acme/repos", func(w http.ResponseWriter, _ *http.Request) {
+		calls++
+		if calls == 1 {
+			w.Header().Set("Retry-After", "1")
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`{"message":"You have exceeded a secondary rate limit","documentation_url":"https://docs.github.com/rest/overview/rate-limits-for-the-rest-api#about-secondary-rate-limits"}`))
+			return
+		}
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(createdAcmeRepo))
+	})
+	c := newTestClient(t, mux)
+	var waited []time.Duration
+	c.sleep = func(_ context.Context, d time.Duration) error {
+		waited = append(waited, d)
+		return sleepContext(context.Background(), d)
+	}
+
+	repo, err := c.CreateRepository(context.Background(), "acme", model.OwnerTypeOrganization, "svc", "", true)
+	if err != nil || repo.ID != 42 {
+		t.Fatalf("CreateRepository = %+v, %v", repo, err)
+	}
+	if calls != 2 || len(waited) != 1 || waited[0] != time.Second {
+		t.Fatalf("calls=%d waited=%v, want one 1s wait", calls, waited)
+	}
+}
+
+func TestGetRepositoryReportsNotFound(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /repos/acme/svc", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"message":"Not Found"}`))
+	})
+	_, err := newTestClient(t, mux).GetRepository(context.Background(), "acme", "svc")
+	if !errors.Is(err, ErrRepositoryNotFound) {
+		t.Fatalf("expected ErrRepositoryNotFound, got %v", err)
 	}
 }

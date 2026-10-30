@@ -106,7 +106,6 @@ public class GithubConnectionServiceImplementation implements GithubConnectionSe
       return frontendRedirect(workspaceId, "error", "access_denied");
     }
     if (code == null || code.isBlank()) {
-      // Installed without user authorization; the user must authorize before we can verify it.
       return frontendRedirect(workspaceId, "error", "authorization_required");
     }
     try {
@@ -215,10 +214,6 @@ public class GithubConnectionServiceImplementation implements GithubConnectionSe
     log.info("Unlinked GitHub installation {}", installation.getInstallationId());
   }
 
-  /**
-   * Links an installation after checking, with GitHub as the source of truth, that the user can
-   * access it, that its account fits the workspace, and that the user administers that account.
-   */
   private GithubInstallation linkVerified(
       User user, GithubAccount account, UUID workspaceId, long installationId, String token) {
     Workspace workspace =

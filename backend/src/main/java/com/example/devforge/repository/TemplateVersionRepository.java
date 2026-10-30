@@ -13,4 +13,6 @@ public interface TemplateVersionRepository extends JpaRepository<TemplateVersion
   Optional<TemplateVersion> findFirstByTemplateId(UUID templateId);
 
   Optional<TemplateVersion> findByTemplateIdAndContentHash(UUID templateId, String contentHash);
+
+  Optional<TemplateVersion> findByTemplateIdAndVersion(UUID templateId, String version);
 }

@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/Badge";
 import { templatesApi } from "@/lib/api/templates";
 import {
   Boxes,
+  Network,
   Plus,
   LogOut,
   Loader2,
@@ -71,6 +72,12 @@ export function Navbar() {
       label: "New Service",
       icon: Plus,
       active: pathname === "/services/new",
+    },
+    {
+      href: "/applications",
+      label: "Applications",
+      icon: Network,
+      active: pathname.startsWith("/applications"),
     },
     {
       href: "/workspaces",

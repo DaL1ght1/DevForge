@@ -29,12 +29,12 @@ version: "2.0.0"
 description: "Short description of the generated project"
 
 variables:
-  - name: SERVICE_NAME
-    required: true
-  - name: DATABASE_TYPE
-    default: "POSTGRESQL"
-    options: ["POSTGRESQL", "MYSQL", "NONE"]
+  - name: PYTHON_VERSION
+    default: "3.12"
+    options: ["3.11", "3.12"]
 ```
+
+Database, messaging and other optional parts are declared as `features` (see [Schema v2 templates](#schema-v2-templates-features-and-dependencies-recommended)), not as variables.
 
 ### Manifest rules
 
@@ -60,7 +60,67 @@ A useful template should include the files needed to create and run a working pr
 - A `.github/workflows/ci.yml` workflow that installs dependencies, runs tests, builds the project, and validates the Docker image.
 - A `README.md` explaining how to run and customize the generated project.
 
-Use the existing templates under `backend/templates` as examples. Keep placeholders compatible with the generator, including values such as `{{SERVICE_NAME}}`, `{{PACKAGE_NAME}}`, `{{CLASS_NAME}}`, `{{DESCRIPTION}}`, and `{{DATABASE_TYPE}}`. Use `.template` on files whose names contain placeholders, for example:
+Use the existing templates under `backend/templates` as examples. Directory and file names may contain the path tokens `__PACKAGE_PATH__`, `__CLASS_NAME__` and `__SERVICE_NAME__`.
+
+### Schema v2 templates: features and dependencies (recommended)
+
+Set `schemaVersion: 2` to let users pick features (database, messaging, extras) when they create a service. `spring_Boot_Maven` is the reference example.
+
+```text
+backend/templates/<folder>/
+  template.yaml
+  base/                     # always rendered
+  features/<optionId>/      # optional overlay, rendered only when that option is selected
+```
+
+- Only files ending in `.tmpl` are templates (the suffix is removed). Every other file is copied byte for byte, so GitHub Actions `${{ }}` expressions never need escaping.
+- Templates use Go `text/template` with `[[ ]]` delimiters. Available data: `.ServiceName`, `.ClassName`, `.PackageName`, `.PackagePath`, `.Description`, `.Vars.<NAME>`, `.Features` and `.Dependencies`. Available functions: `has "<option-or-group-id>"`, `selected "<group>"`, `quote` (JSON/YAML string), `xml` (escape), `lower`, `upper`, `pascal`, `camel`, `kebab`, `snake`, and `gradleConfiguration <scope>`. Referencing an undefined variable is an error.
+- A `.tmpl` file that renders to only whitespace is left out, so a base file can exist only for some combinations (see `TestcontainersConfiguration.java.tmpl`).
+- When an overlay file has the same path as a base file, the overlay replaces it.
+
+Declare the choices in `template.yaml`:
+
+```yaml
+schemaVersion: 2
+variables:
+  - name: JAVA_VERSION          # use it as [[ .Vars.JAVA_VERSION ]]
+    options: ["17", "21"]       # options make it a select; omit for free text (optional `pattern`)
+    default: "21"
+features:
+  - id: database
+    label: Database
+    kind: choice                # choice = at most one, multi = any subset
+    required: false
+    options:
+      - id: postgresql          # also the overlay folder name: features/postgresql/
+        label: PostgreSQL
+        dependencies:           # rendered by the build file via [[ range .Dependencies ]]
+          - { group: org.postgresql, artifact: postgresql, scope: runtime }
+  - id: extras
+    kind: multi
+    options:
+      - id: flyway
+        requires: [database]    # option or group ids that must also be selected
+        conflicts: [mongodb]    # option or group ids that must not be selected
+ci:                             # feature combinations the repository CI generates and builds
+  - name: postgresql
+    features: { database: [postgresql], extras: [flyway] }
+```
+
+- Feature group and option ids share one namespace, must be unique, and use lowercase letters, digits and hyphens.
+- Dependency scopes: `compile` (default), `runtime`, `provided`, `test`, `test-runtime`, `annotation-processor`, `development` (local run only), and `dev` (npm devDependencies).
+- `SERVICE_NAME`, `CLASS_NAME`, `PACKAGE_NAME`, `PACKAGE_PATH` and `DESCRIPTION` are reserved: DevForge always sets them, and users cannot override them.
+
+Try a combination locally from `backend/provisioner`:
+
+```bash
+go run ./cmd/template-gen -templates-root ../templates -template spring_Boot_Maven \
+  -output /tmp/out -feature database=postgresql -feature extras=flyway -var JAVA_VERSION=21
+```
+
+### Legacy (schema v1) templates
+
+Without `schemaVersion: 2`, every file in the folder is processed and `{{SERVICE_NAME}}`, `{{PACKAGE_NAME}}`, `{{CLASS_NAME}}`, `{{DESCRIPTION}}` and any manifest variable are replaced as plain text. A `.template` suffix is removed from file names, for example:
 
 ```text
 src/main/java/__PACKAGE_PATH__/__CLASS_NAME__Application.java.template

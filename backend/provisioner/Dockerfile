@@ -21,15 +21,11 @@ WORKDIR /app
 RUN apk add --no-cache ca-certificates \
     && addgroup -S devforge \
     && adduser -S -G devforge devforge \
-    && mkdir -p /app/templates /app/workspace \
     && chown -R devforge:devforge /app
 
 COPY --from=build /out/provisioner /app/provisioner
-COPY templates /app/templates
 
-ENV TEMPLATES_DIR=/app/templates \
-    WORKSPACE_DIR=/app/workspace \
-    PORT=8081
+ENV PORT=8081
 
 USER devforge
 

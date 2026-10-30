@@ -41,7 +41,6 @@ public class GithubWebhookServiceImplementation implements GithubWebhookService 
     if (!StringUtils.hasText(event) || !StringUtils.hasText(deliveryId)) {
       throw new IllegalArgumentException("Missing X-GitHub-Event or X-GitHub-Delivery header");
     }
-    // Same transaction as the side effects: if handling fails, the redelivery is processed again.
     if (!deliveryRepository.markReceived(deliveryId, event)) {
       log.info("Ignoring redelivered GitHub webhook {} ({})", deliveryId, event);
       return;

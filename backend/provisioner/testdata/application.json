@@ -1,0 +1,13 @@
+{
+  "serviceName": "ci-shop",
+  "description": "CI generated application",
+  "services": [
+    {"serviceName": "orders", "templateName": "spring_Boot_Maven", "templateVersion": "ci", "port": 8080,
+     "features": {"database": ["postgresql"], "messaging": ["kafka"], "extras": ["flyway"]}},
+    {"serviceName": "billing", "templateName": "spring_Boot_Gradle", "templateVersion": "ci", "port": 8081,
+     "features": {"database": ["postgresql"]}},
+    {"serviceName": "catalog", "templateName": "spring_Boot_Maven", "templateVersion": "ci", "port": 8082,
+     "features": {"database": ["mongodb"]}},
+    {"serviceName": "web", "templateName": "typescript_Express_NPM", "templateVersion": "ci", "port": 8083}
+  ]
+}

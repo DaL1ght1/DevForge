@@ -1,6 +1,7 @@
 package com.example.devforge.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
 import com.example.devforge.TestcontainersConfiguration;
@@ -8,6 +9,10 @@ import com.example.devforge.client.ProvisionerClient;
 import com.example.devforge.config.kafka.KafkaProperties;
 import com.example.devforge.config.keycloak.KeycloakAdminClient;
 import com.example.devforge.dto.AppServiceCreationDto;
+import com.example.devforge.dto.ApplicationCreationDto;
+import com.example.devforge.dto.ApplicationResponse;
+import com.example.devforge.dto.InternalJobClaimResponse;
+import com.example.devforge.dto.TemplateSynchronizationResult;
 import com.example.devforge.entity.AppService;
 import com.example.devforge.entity.AppTemplate;
 import com.example.devforge.entity.BuildTool;
@@ -16,14 +21,20 @@ import com.example.devforge.entity.GithubInstallation;
 import com.example.devforge.entity.ProvisioningJob;
 import com.example.devforge.entity.ProvisioningStatus;
 import com.example.devforge.entity.ServiceStatus;
+import com.example.devforge.entity.TemplateArtifact;
 import com.example.devforge.entity.TemplateFramework;
 import com.example.devforge.entity.TemplateLanguage;
 import com.example.devforge.entity.TemplateVersion;
 import com.example.devforge.entity.User;
+import com.example.devforge.exception.ConflictException;
+import com.example.devforge.exception.InvalidCredentialsException;
 import com.example.devforge.repository.AppServiceRepository;
 import com.example.devforge.repository.AppTemplateRepository;
+import com.example.devforge.repository.ApplicationRepository;
 import com.example.devforge.repository.GithubInstallationRepository;
+import com.example.devforge.repository.OutboxEventRepository;
 import com.example.devforge.repository.ProvisioningJobRepository;
+import com.example.devforge.repository.TemplateArtifactRepository;
 import com.example.devforge.repository.TemplateVersionRepository;
 import com.example.devforge.repository.UserRepository;
 import java.time.Duration;
@@ -73,11 +84,23 @@ import org.testcontainers.kafka.KafkaContainer;
       "GROUP_ID=integration",
       "devforge.kafka.topics.partitions=1",
       "devforge.kafka.topics.replicas=1",
-      "spring.kafka.consumer.auto-offset-reset=earliest"
+      "spring.kafka.consumer.auto-offset-reset=earliest",
+      "devforge.internal.api-token=" + KafkaServiceImplementationIntegrationTest.INTERNAL_TOKEN
     })
 @Import(TestcontainersConfiguration.class)
 @ActiveProfiles("test")
 class KafkaServiceImplementationIntegrationTest {
+
+  static final String INTERNAL_TOKEN = "integration-internal-token";
+
+  private static final String TEST_MANIFEST =
+      """
+      name: spring
+      version: 1.0.0
+      language: JAVA
+      framework: SPRING_BOOT
+      buildTool: MAVEN
+      """;
 
   @MockitoBean KeycloakAdminClient keycloakAdminClient;
 
@@ -93,12 +116,20 @@ class KafkaServiceImplementationIntegrationTest {
   @Autowired private TemplateVersionRepository templateVersionRepository;
   @Autowired private WorkspaceService workspaceService;
   @Autowired private GithubInstallationRepository githubInstallationRepository;
+  @Autowired private OutboxEventRepository outboxEventRepository;
+  @Autowired private InternalProvisioningService internalProvisioningService;
+  @Autowired private ApplicationService applicationService;
+  @Autowired private ApplicationRepository applicationRepository;
+  @Autowired private TemplateSynchronizer templateSynchronizer;
+  @Autowired private TemplateArtifactRepository templateArtifactRepository;
 
   @BeforeEach
   void cleanDatabase() {
     githubInstallationRepository.deleteAll();
+    outboxEventRepository.deleteAll();
     provisioningJobRepository.deleteAll();
     appServiceRepository.deleteAll();
+    applicationRepository.deleteAll();
     templateVersionRepository.deleteAll();
     appTemplateRepository.deleteAll();
     userRepository.deleteAll();
@@ -128,6 +159,7 @@ class KafkaServiceImplementationIntegrationTest {
         new ProvisionerClient.ProvisionResponse(
             null,
             service.getId(),
+            null,
             service.getName(),
             null,
             null,
@@ -174,6 +206,7 @@ class KafkaServiceImplementationIntegrationTest {
         new ProvisionerClient.ProvisionResponse(
             otherJob.getId(),
             target.getId(),
+            null,
             target.getName(),
             null,
             "https://github.com/example/hijack",
@@ -200,7 +233,15 @@ class KafkaServiceImplementationIntegrationTest {
     send(completed(service, job, "https://github.com/example/demo"));
     send(
         new ProvisionerClient.ProvisionResponse(
-            job.getId(), service.getId(), service.getName(), null, null, null, "FAILED", "late"));
+            job.getId(),
+            service.getId(),
+            null,
+            service.getName(),
+            null,
+            null,
+            null,
+            "FAILED",
+            "late"));
 
     await()
         .atMost(Duration.ofSeconds(20))
@@ -229,8 +270,7 @@ class KafkaServiceImplementationIntegrationTest {
         new AppServiceCreationDto(
             "ord-" + UUID.randomUUID().toString().substring(0, 8),
             "ordering test",
-            version.getId(),
-            "NONE");
+            version.getId());
     AtomicReference<UUID> serviceId = new AtomicReference<>();
 
     try (KafkaConsumer<String, String> consumer = requestConsumer()) {
@@ -246,6 +286,225 @@ class KafkaServiceImplementationIntegrationTest {
     assertThat(appServiceRepository.findById(serviceId.get())).isPresent();
   }
 
+  @Test
+  void provisionRequestIsRecordedInOutboxAndMarkedSent() {
+    User user = saveUser();
+    saveInstallation(user);
+    TemplateVersion version = saveTemplateVersion();
+
+    AppService created =
+        appServiceService.createService(
+            user.getKeycloakId(),
+            new AppServiceCreationDto(
+                "obx-" + UUID.randomUUID().toString().substring(0, 8), null, version.getId()));
+
+    await()
+        .atMost(Duration.ofSeconds(15))
+        .untilAsserted(
+            () -> {
+              assertThat(outboxEventRepository.findAll())
+                  .singleElement()
+                  .satisfies(e -> assertThat(e.getSentAt()).isNotNull());
+              ProvisioningJob job =
+                  provisioningJobRepository
+                      .findTopByServiceIdOrderByCreatedAtDesc(created.getId())
+                      .orElseThrow();
+              assertThat(job.getStatus()).isEqualTo(ProvisioningStatus.GENERATING);
+            });
+  }
+
+  @Test
+  void claimIsIdempotentAndRefusedOnceTheJobFinished() {
+    ProvisioningJob job = saveJob(saveService());
+
+    InternalJobClaimResponse first = internalProvisioningService.claim(INTERNAL_TOKEN, job.getId());
+    internalProvisioningService.recordRepository(INTERNAL_TOKEN, job.getId(), 99L);
+    InternalJobClaimResponse redelivered =
+        internalProvisioningService.claim(INTERNAL_TOKEN, job.getId());
+
+    assertThat(first.proceed()).isTrue();
+    assertThat(first.repositoryId()).isNull();
+    assertThat(redelivered.proceed()).isTrue();
+    assertThat(redelivered.attempt()).isEqualTo(first.attempt() + 1);
+    assertThat(redelivered.repositoryId()).isEqualTo(99L);
+
+    ProvisioningJob finished = provisioningJobRepository.findById(job.getId()).orElseThrow();
+    finished.setStatus(ProvisioningStatus.COMPLETED);
+    provisioningJobRepository.save(finished);
+
+    assertThat(internalProvisioningService.claim(INTERNAL_TOKEN, job.getId()).proceed()).isFalse();
+    assertThatThrownBy(
+            () -> internalProvisioningService.recordRepository(INTERNAL_TOKEN, job.getId(), 1L))
+        .isInstanceOf(ConflictException.class);
+    assertThatThrownBy(() -> internalProvisioningService.claim("wrong", job.getId()))
+        .isInstanceOf(InvalidCredentialsException.class);
+  }
+
+  @Test
+  void applicationIsProvisionedAsOneJobAndCompletesAllItsServices() {
+    User user = saveUser();
+    saveInstallation(user);
+    TemplateVersion version = saveTemplateVersion();
+    String suffix = UUID.randomUUID().toString().substring(0, 6);
+
+    ApplicationResponse created =
+        applicationService.createApplication(
+            user.getKeycloakId(),
+            new ApplicationCreationDto(
+                "shop-" + suffix,
+                "Shop",
+                null,
+                List.of(
+                    new ApplicationCreationDto.Service(
+                        "ord-" + suffix, null, version.getId(), null, null),
+                    new ApplicationCreationDto.Service(
+                        "bil-" + suffix, null, version.getId(), null, null))));
+
+    assertThat(created.services())
+        .extracting(ApplicationResponse.ServiceSummary::port)
+        .containsExactly(8080, 8081);
+    ProvisioningJob job =
+        await()
+            .atMost(Duration.ofSeconds(15))
+            .until(
+                () ->
+                    provisioningJobRepository
+                        .findTopByServiceIdOrderByCreatedAtDesc(created.services().getFirst().id())
+                        .filter(j -> j.getStatus() == ProvisioningStatus.GENERATING)
+                        .orElse(null),
+                java.util.Objects::nonNull);
+    assertThat(outboxEventRepository.findAll())
+        .singleElement()
+        .satisfies(
+            e -> {
+              assertThat(e.getPayload()).contains("\"applicationId\":\"" + created.id());
+              assertThat(e.getPayload()).contains("\"port\":8081");
+            });
+
+    send(
+        new ProvisionerClient.ProvisionResponse(
+            job.getId(),
+            created.services().getFirst().id(),
+            created.id(),
+            created.name(),
+            null,
+            "https://github.com/example/" + created.name(),
+            77L,
+            "COMPLETED",
+            null));
+
+    await()
+        .atMost(Duration.ofSeconds(15))
+        .untilAsserted(
+            () -> {
+              ApplicationResponse app =
+                  applicationService.getApplication(created.id(), user.getKeycloakId(), true);
+              assertThat(app.status()).isEqualTo(ServiceStatus.PUSHED);
+              assertThat(app.repositoryUrl())
+                  .isEqualTo("https://github.com/example/" + created.name());
+              assertThat(app.services())
+                  .allSatisfy(s -> assertThat(s.status()).isEqualTo(ServiceStatus.PUSHED))
+                  .extracting(ApplicationResponse.ServiceSummary::repositoryUrl)
+                  .containsExactly(
+                      app.repositoryUrl() + "/tree/main/services/ord-" + suffix,
+                      app.repositoryUrl() + "/tree/main/services/bil-" + suffix);
+            });
+  }
+
+  @Test
+  void applicationNameMustBeUniqueInTheWorkspace() {
+    User user = saveUser();
+    saveInstallation(user);
+    TemplateVersion version = saveTemplateVersion();
+    ApplicationCreationDto dto =
+        new ApplicationCreationDto(
+            "dup-app",
+            null,
+            null,
+            List.of(
+                new ApplicationCreationDto.Service(
+                    "dup-svc-1", null, version.getId(), null, null)));
+    applicationService.createApplication(user.getKeycloakId(), dto);
+
+    assertThatThrownBy(
+            () ->
+                applicationService.createApplication(
+                    user.getKeycloakId(),
+                    new ApplicationCreationDto(
+                        "dup-app",
+                        null,
+                        null,
+                        List.of(
+                            new ApplicationCreationDto.Service(
+                                "dup-svc-2", null, version.getId(), null, null)))))
+        .isInstanceOf(ConflictException.class);
+  }
+
+  @Test
+  void syncAdoptsCurrentContentForVersionsWithoutAnArtifact() {
+    TemplateVersion legacy = saveLegacyGoVersion(null);
+
+    TemplateSynchronizationResult result = templateSynchronizer.synchronize();
+
+    TemplateVersion adopted = templateVersionRepository.findById(legacy.getId()).orElseThrow();
+    assertThat(result.failed()).isZero();
+    assertThat(adopted.getArtifactDigest()).hasSize(64);
+    assertThat(adopted.getContentHash()).isNotEqualTo(legacy.getContentHash());
+    assertThat(adopted.getManifest()).contains("go_Gin_Go_Modules");
+    assertThat(templateArtifactRepository.existsById(adopted.getArtifactDigest())).isTrue();
+  }
+
+  @Test
+  void syncRefusesToChangeAVersionThatHasAnArtifact() {
+    templateArtifactRepository.save(
+        TemplateArtifact.builder()
+            .digest("a".repeat(64))
+            .sizeBytes(1)
+            .data(new byte[] {1})
+            .build());
+    TemplateVersion stored = saveLegacyGoVersion("a".repeat(64));
+
+    TemplateSynchronizationResult result = templateSynchronizer.synchronize();
+
+    TemplateVersion unchanged = templateVersionRepository.findById(stored.getId()).orElseThrow();
+    assertThat(result.failed()).isEqualTo(1);
+    assertThat(unchanged.getContentHash()).isEqualTo(stored.getContentHash());
+    assertThat(unchanged.getArtifactDigest()).isEqualTo("a".repeat(64));
+  }
+
+  private TemplateVersion saveLegacyGoVersion(String artifactDigest) {
+    AppTemplate template =
+        appTemplateRepository.save(
+            AppTemplate.builder()
+                .name("legacy-go")
+                .stableKey("go_Gin_Go_Modules")
+                .language(TemplateLanguage.JAVA)
+                .framework(TemplateFramework.SPRING_BOOT)
+                .buildTool(BuildTool.MAVEN)
+                .build());
+    return templateVersionRepository.save(
+        TemplateVersion.builder()
+            .template(template)
+            .version("1.0.0")
+            .sourcePath("go_Gin_Go_Modules")
+            .contentHash("0".repeat(64))
+            .manifest(TEST_MANIFEST)
+            .artifactReference("go_Gin_Go_Modules")
+            .artifactDigest(artifactDigest)
+            .build());
+  }
+
+  private void saveInstallation(User user) {
+    githubInstallationRepository.save(
+        GithubInstallation.builder()
+            .installationId(Math.abs(UUID.randomUUID().getMostSignificantBits()))
+            .accountId(1L)
+            .accountLogin("example")
+            .accountType(GithubAccountType.USER)
+            .workspace(workspaceService.getOrCreatePersonal(user))
+            .build());
+  }
+
   private void send(ProvisionerClient.ProvisionResponse response) {
     kafkaTemplate
         .send(kafkaProperties.responseTopic(), response.serviceId().toString(), response)
@@ -254,7 +513,15 @@ class KafkaServiceImplementationIntegrationTest {
 
   private ProvisionerClient.ProvisionResponse completed(AppService service, String repositoryUrl) {
     return new ProvisionerClient.ProvisionResponse(
-        null, service.getId(), service.getName(), null, repositoryUrl, null, "COMPLETED", null);
+        null,
+        service.getId(),
+        null,
+        service.getName(),
+        null,
+        repositoryUrl,
+        null,
+        "COMPLETED",
+        null);
   }
 
   private ProvisionerClient.ProvisionResponse completed(
@@ -262,6 +529,7 @@ class KafkaServiceImplementationIntegrationTest {
     return new ProvisionerClient.ProvisionResponse(
         job.getId(),
         service.getId(),
+        null,
         service.getName(),
         null,
         repositoryUrl,
@@ -336,7 +604,7 @@ class KafkaServiceImplementationIntegrationTest {
             .version("1.0.0")
             .sourcePath("templates/spring")
             .contentHash(UUID.randomUUID().toString())
-            .manifest("variables: []")
+            .manifest(TEST_MANIFEST)
             .artifactReference("test")
             .build());
   }

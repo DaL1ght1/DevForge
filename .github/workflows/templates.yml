@@ -31,17 +31,18 @@ jobs:
       templates: ${{ steps.list.outputs.templates }}
     steps:
       - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-go@v5.5.0
+        with:
+          go-version-file: backend/provisioner/go.mod
+          cache-dependency-path: backend/provisioner/go.sum
       - id: list
         shell: bash
+        working-directory: backend/provisioner
         run: |
           set -euo pipefail
-          # One matrix entry per template folder, with its build tool read from the SOURCE template.yaml
-          templates="$(for d in backend/templates/*/; do
-              n="$(basename "$d")"
-              t="$(sed -n 's/^buildTool: *"\{0,1\}\([A-Z_]*\)"\{0,1\}.*/\1/p' "$d/template.yaml" | head -n 1)"
-              if [ -z "$t" ]; then echo "No buildTool in $d/template.yaml" >&2; exit 1; fi
-              printf '%s %s\n' "$n" "$t"
-            done | jq -Rsc 'split("\n") | map(select(length > 0) | split(" ") | {template: .[0], buildTool: .[1]})')"
+          # One matrix entry per template folder and per `ci` profile in its template.yaml,
+          # so feature combinations (database, messaging, ...) are generated and built too.
+          templates="$(go run ./cmd/template-gen -templates-root "$GITHUB_WORKSPACE/backend/templates" -list-ci)"
           test "$templates" != "[]"
           echo "templates=$templates" >> "$GITHUB_OUTPUT"
 
@@ -49,7 +50,7 @@ jobs:
     needs: discover
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    name: ${{ matrix.template }}
+    name: ${{ matrix.template }} (${{ matrix.profile }})
     strategy:
       fail-fast: false
       matrix:
@@ -108,14 +109,19 @@ jobs:
         working-directory: backend/provisioner
         env:
           TEMPLATE: ${{ matrix.template }}
+          PROFILE: ${{ matrix.profile }}
+          FEATURES: ${{ join(matrix.features, ' ') }}
         run: |
           set -euo pipefail
-          output="$RUNNER_TEMP/generated/$TEMPLATE"
+          output="$RUNNER_TEMP/generated/$TEMPLATE-$PROFILE"
           mkdir -p "$output"
+          feature_args=()
+          for f in $FEATURES; do feature_args+=(-feature "$f"); done
           project="$(go run ./cmd/template-gen \
             -templates-root "$GITHUB_WORKSPACE/backend/templates" \
             -template "$TEMPLATE" \
             -service-name ci-service \
+            "${feature_args[@]}" \
             -output "$output")"
           echo "Generated project: $project"
           echo "project=$project" >> "$GITHUB_OUTPUT"
@@ -168,4 +174,49 @@ jobs:
 
       - name: Build generated Docker image
         working-directory: ${{ steps.generate.outputs.project }}
-        run: docker build --tag "devforge-ci:${{ matrix.template }}" .
+        run: docker build --tag "devforge-ci:${{ matrix.template }}-${{ matrix.profile }}" .
+  application:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    name: multi-service application
+    steps:
+      - uses: actions/checkout@v4.2.2
+
+      - uses: actions/setup-go@v5.5.0
+        with:
+          go-version-file: backend/provisioner/go.mod
+          cache-dependency-path: backend/provisioner/go.sum
+
+      - name: Generate application
+        id: generate
+        working-directory: backend/provisioner
+        shell: bash
+        run: |
+          set -euo pipefail
+          project="$(go run ./cmd/template-gen \
+            -templates-root "$GITHUB_WORKSPACE/backend/templates" \
+            -spec testdata/application.json \
+            -output "$RUNNER_TEMP/application")"
+          echo "project=$project" >> "$GITHUB_OUTPUT"
+
+      - name: Start every service
+        working-directory: ${{ steps.generate.outputs.project }}
+        run: docker compose up --build --detach
+
+      - name: Every service answers through the shared infrastructure
+        working-directory: ${{ steps.generate.outputs.project }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for port in 8080 8081 8082 8083; do
+            for attempt in $(seq 1 60); do
+              curl -sf "http://localhost:$port/api/v1/ping" && break
+              [ "$attempt" = 60 ] && { docker compose logs; exit 1; }
+              sleep 5
+            done
+          done
+
+      - name: Stop
+        if: always()
+        working-directory: ${{ steps.generate.outputs.project }}
+        run: docker compose down --volumes

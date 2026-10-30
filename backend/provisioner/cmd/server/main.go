@@ -8,12 +8,15 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
+	"devforge/provisioner/internal/artifacts"
 	"devforge/provisioner/internal/backend"
 	"devforge/provisioner/internal/config"
 	"devforge/provisioner/internal/generator"
 	"devforge/provisioner/internal/git"
 	"devforge/provisioner/internal/github"
+	"devforge/provisioner/internal/httpapi"
 	provKafka "devforge/provisioner/internal/kafka"
 )
 
@@ -22,50 +25,56 @@ func main() {
 	if err != nil {
 		log.Fatalf("[Config Error] %v", err)
 	}
-	log.Printf("[Provisioner] Using templates: %s", cfg.TemplatesDir)
-	log.Printf("[Provisioner] Using workspace: %s", cfg.WorkspaceDir)
 
+	gen := generator.NewProjectGenerator(cfg.TemplatesDir)
 	deps := provKafka.Dependencies{
-		Generator:   generator.NewProjectGenerator(cfg.TemplatesDir),
-		Clients:     provKafka.InstallationClients(github.NewClientFactory(cfg.GithubAppID, cfg.GithubAppPrivateKey)),
-		TokenClient: provKafka.UserTokenClients,
-		Pusher:      git.NewPusher(),
-		Workspace:   cfg.WorkspaceDir,
+		Generator:       gen,
+		Clients:         provKafka.InstallationClients(github.NewClientFactory(cfg.GithubAppID, cfg.GithubAppPrivateKey)),
+		TokenClient:     provKafka.UserTokenClients,
+		Pusher:          git.NewPusher(),
+		PerInstallation: cfg.PerInstallation,
+		JobTimeout:      cfg.JobTimeout,
 	}
 	if cfg.InternalAPIToken != "" {
-		deps.UserTokens = backend.NewClient(cfg.BackendInternalURL, cfg.InternalAPIToken)
-		log.Printf("[Provisioner] Personal-account user-token fallback enabled via %s", cfg.BackendInternalURL)
+		backendClient := backend.NewClient(cfg.BackendInternalURL, cfg.InternalAPIToken)
+		deps.UserTokens = backendClient
+		deps.Jobs = backendClient
+		gen.WithArtifacts(artifacts.NewStore(backendClient.TemplateArtifact, cfg.ArtifactCacheSize))
+		log.Printf("[Provisioner] Templates, job claims and user tokens via %s", cfg.BackendInternalURL)
 	} else {
-		log.Println("[Provisioner] INTERNAL_API_TOKEN not set: personal accounts must accept installation tokens")
+		if info, err := os.Stat(cfg.TemplatesDir); err != nil || !info.IsDir() {
+			log.Fatalf("[Config Error] INTERNAL_API_TOKEN is required to fetch templates from the backend (no local templates at %s)", cfg.TemplatesDir)
+		}
+		log.Printf("[Provisioner] INTERNAL_API_TOKEN not set: rendering templates from %s without job claims", cfg.TemplatesDir)
 	}
+	log.Printf("[Provisioner] %d consumers, %d concurrent jobs per installation, job timeout %s",
+		cfg.Concurrency, cfg.PerInstallation, cfg.JobTimeout)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	worker := provKafka.NewProvisionWorker(
-		cfg.KafkaBrokers,
-		cfg.RequestTopic,
-		cfg.ResponseTopic,
-		cfg.KafkaGroupID,
-		deps,
-	)
-	go worker.Start(ctx)
+	worker := provKafka.NewProvisionWorker(provKafka.Options{
+		Brokers:       cfg.KafkaBrokers,
+		RequestTopic:  cfg.RequestTopic,
+		ResponseTopic: cfg.ResponseTopic,
+		GroupID:       cfg.KafkaGroupID,
+		Concurrency:   cfg.Concurrency,
+		Partitions:    cfg.Partitions,
+	}, deps)
+	workerDone := make(chan struct{})
+	go func() {
+		worker.Start(ctx)
+		close(workerDone)
+	}()
 
 	server := &http.Server{
-		Addr: ":" + cfg.Port,
-		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path == "/health" && r.Method == http.MethodGet {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusOK)
-				_, _ = w.Write([]byte(`{"status":"UP"}`))
-				return
-			}
-			http.NotFound(w, r)
-		}),
+		Addr:              ":" + cfg.Port,
+		Handler:           httpapi.NewHandler(gen, cfg.InternalAPIToken),
+		ReadHeaderTimeout: 10 * time.Second,
 	}
 
 	go func() {
-		log.Printf("Provisioner listening on :%s (/health)", cfg.Port)
+		log.Printf("Provisioner listening on :%s (/health, /internal/render)", cfg.Port)
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatalf("HTTP server error: %v", err)
 		}
@@ -74,6 +83,7 @@ func main() {
 	<-ctx.Done()
 	log.Println("Shutting down provisioner...")
 	_ = server.Shutdown(context.Background())
+	<-workerDone
 	worker.Close()
 	log.Println("Provisioner stopped cleanly.")
 }

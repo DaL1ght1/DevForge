@@ -19,13 +19,13 @@ import com.example.devforge.exception.InvalidCredentialsException;
 import com.example.devforge.repository.GithubAccountRepository;
 import com.example.devforge.repository.GithubInstallationRepository;
 import com.example.devforge.repository.ProvisioningJobRepository;
+import com.example.devforge.security.InternalApiGuard;
 import com.example.devforge.service.implementation.GithubUserTokens;
 import com.example.devforge.service.implementation.ProvisioningCredentialServiceImplementation;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.util.ReflectionTestUtils;
 
 class ProvisioningCredentialServiceImplementationTest {
 
@@ -38,7 +38,11 @@ class ProvisioningCredentialServiceImplementationTest {
   private final GithubUserTokens userTokens = mock(GithubUserTokens.class);
   private final ProvisioningCredentialServiceImplementation service =
       new ProvisioningCredentialServiceImplementation(
-          jobRepository, installationRepository, accountRepository, userTokens);
+          jobRepository,
+          installationRepository,
+          accountRepository,
+          userTokens,
+          new InternalApiGuard(SECRET));
 
   private final UUID jobId = UUID.randomUUID();
   private final User owner = User.builder().id(UUID.randomUUID()).build();
@@ -56,7 +60,6 @@ class ProvisioningCredentialServiceImplementationTest {
 
   @BeforeEach
   void setUp() {
-    ReflectionTestUtils.setField(service, "internalApiToken", SECRET);
     job =
         ProvisioningJob.builder()
             .id(jobId)
@@ -87,9 +90,15 @@ class ProvisioningCredentialServiceImplementationTest {
 
   @Test
   void disabledWhenNoSecretConfigured() {
-    ReflectionTestUtils.setField(service, "internalApiToken", "");
+    ProvisioningCredentialServiceImplementation disabled =
+        new ProvisioningCredentialServiceImplementation(
+            jobRepository,
+            installationRepository,
+            accountRepository,
+            userTokens,
+            new InternalApiGuard(""));
 
-    assertThatThrownBy(() -> service.userTokenForJob("", jobId))
+    assertThatThrownBy(() -> disabled.userTokenForJob("", jobId))
         .isInstanceOf(InvalidCredentialsException.class);
   }
 

@@ -1,0 +1,48 @@
+[[- if or (has "database") (has "messaging") -]]
+# Local backing services. `bootRun` starts them automatically through
+# spring-boot-docker-compose; in production, configure the connection with environment variables.
+services:
+[[- if has "postgresql" ]]
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: [[ snake .ServiceName ]]
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+    ports:
+      - "5432"
+[[- end ]]
+[[- if has "mysql" ]]
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: [[ snake .ServiceName ]]
+      MYSQL_USER: app
+      MYSQL_PASSWORD: app
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306"
+[[- end ]]
+[[- if has "mongodb" ]]
+  mongodb:
+    image: mongo:7
+    ports:
+      - "27017"
+[[- end ]]
+[[- if has "kafka" ]]
+  kafka:
+    image: apache/kafka:3.7.0
+    # Spring Boot has no Docker Compose connection support for Kafka; the app uses
+    # KAFKA_BOOTSTRAP_SERVERS (default localhost:9092), so the port is fixed.
+    labels:
+      org.springframework.boot.ignore: "true"
+    ports:
+      - "9092:9092"
+[[- end ]]
+[[- if has "rabbitmq" ]]
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    ports:
+      - "5672"
+[[- end ]]
+[[- end ]]

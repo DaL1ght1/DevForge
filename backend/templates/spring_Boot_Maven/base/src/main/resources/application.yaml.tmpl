@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: [[ .ServiceName ]]
+[[- if or (has "postgresql") (has "mysql") ]]
+  jpa:
+    open-in-view: false
+[[- end ]]
+[[- if has "kafka" ]]
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+[[- end ]]
+server:
+  port: 8080
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+[[- if has "openapi" ]]
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+[[- end ]]

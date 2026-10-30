@@ -1,15 +1,101 @@
+schemaVersion: 2
 id: "spring_Boot_Maven"
 name: "spring-maven"
 stableKey: "spring_Boot_Maven"
 language: "JAVA"
 framework: "SPRING_BOOT"
 buildTool: "MAVEN"
-version: "1.0.0"
+version: "2.0.0"
 description: "Stable spring boot microservice for robust apps"
 
 variables:
-  - name: SERVICE_NAME
-    required: true
-  - name: DATABASE_TYPE
-    default: "POSTGRESQL"
-    options: ["POSTGRESQL", "MYSQL", "NONE"]
+  - name: JAVA_VERSION
+    label: Java version
+    options: ["17", "21"]
+    default: "21"
+
+features:
+  - id: database
+    label: Database
+    kind: choice
+    options:
+      - id: postgresql
+        label: PostgreSQL
+        description: Spring Data JPA with the PostgreSQL driver
+        dependencies:
+          - { group: org.springframework.boot, artifact: spring-boot-starter-data-jpa }
+          - { group: org.postgresql, artifact: postgresql, scope: runtime }
+          - { group: org.springframework.boot, artifact: spring-boot-docker-compose, scope: development }
+          - { group: org.springframework.boot, artifact: spring-boot-testcontainers, scope: test }
+          - { group: org.testcontainers, artifact: junit-jupiter, scope: test }
+          - { group: org.testcontainers, artifact: postgresql, scope: test }
+      - id: mysql
+        label: MySQL
+        description: Spring Data JPA with the MySQL driver
+        dependencies:
+          - { group: org.springframework.boot, artifact: spring-boot-starter-data-jpa }
+          - { group: com.mysql, artifact: mysql-connector-j, scope: runtime }
+          - { group: org.springframework.boot, artifact: spring-boot-docker-compose, scope: development }
+          - { group: org.springframework.boot, artifact: spring-boot-testcontainers, scope: test }
+          - { group: org.testcontainers, artifact: junit-jupiter, scope: test }
+          - { group: org.testcontainers, artifact: mysql, scope: test }
+      - id: mongodb
+        label: MongoDB
+        description: Spring Data MongoDB
+        dependencies:
+          - { group: org.springframework.boot, artifact: spring-boot-starter-data-mongodb }
+          - { group: org.springframework.boot, artifact: spring-boot-docker-compose, scope: development }
+          - { group: org.springframework.boot, artifact: spring-boot-testcontainers, scope: test }
+          - { group: org.testcontainers, artifact: junit-jupiter, scope: test }
+          - { group: org.testcontainers, artifact: mongodb, scope: test }
+
+  - id: messaging
+    label: Messaging
+    kind: choice
+    options:
+      - id: kafka
+        label: Apache Kafka
+        dependencies:
+          - { group: org.springframework.kafka, artifact: spring-kafka }
+          - { group: org.springframework.boot, artifact: spring-boot-testcontainers, scope: test }
+          - { group: org.testcontainers, artifact: junit-jupiter, scope: test }
+          - { group: org.testcontainers, artifact: kafka, scope: test }
+      - id: rabbitmq
+        label: RabbitMQ
+        dependencies:
+          - { group: org.springframework.boot, artifact: spring-boot-starter-amqp }
+          - { group: org.springframework.boot, artifact: spring-boot-docker-compose, scope: development }
+          - { group: org.springframework.boot, artifact: spring-boot-testcontainers, scope: test }
+          - { group: org.testcontainers, artifact: junit-jupiter, scope: test }
+          - { group: org.testcontainers, artifact: rabbitmq, scope: test }
+
+  - id: extras
+    label: Extras
+    kind: multi
+    options:
+      - id: validation
+        label: Bean Validation
+        dependencies:
+          - { group: org.springframework.boot, artifact: spring-boot-starter-validation }
+      - id: openapi
+        label: OpenAPI / Swagger UI
+        description: springdoc-openapi with Swagger UI at /swagger-ui.html
+        dependencies:
+          - { group: org.springdoc, artifact: springdoc-openapi-starter-webmvc-ui, version: "2.6.0" }
+      - id: flyway
+        label: Flyway migrations
+        description: Versioned SQL migrations under src/main/resources/db/migration
+        requires: [database]
+        conflicts: [mongodb]
+        dependencies:
+          - { group: org.flywaydb, artifact: flyway-core }
+
+ci:
+  - name: minimal
+    features: {}
+  - name: postgresql-kafka
+    features: { database: [postgresql], messaging: [kafka], extras: [validation, openapi, flyway] }
+  - name: mysql-rabbitmq
+    features: { database: [mysql], messaging: [rabbitmq], extras: [flyway] }
+  - name: mongodb
+    features: { database: [mongodb], extras: [openapi] }

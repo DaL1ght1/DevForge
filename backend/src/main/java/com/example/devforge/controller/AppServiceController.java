@@ -2,8 +2,11 @@ package com.example.devforge.controller;
 
 import com.example.devforge.dto.AppServiceCreationDto;
 import com.example.devforge.dto.AppServiceResponse;
+import com.example.devforge.dto.PreviewFileResponse;
+import com.example.devforge.dto.ServicePreviewResponse;
 import com.example.devforge.mapper.AppServiceMapper;
 import com.example.devforge.service.AppServiceService;
+import com.example.devforge.service.ServicePreviewService;
 import jakarta.validation.Valid;
 import java.util.Objects;
 import java.util.UUID;
@@ -21,6 +24,7 @@ public class AppServiceController {
 
   private final AppServiceService appServiceService;
   private final AppServiceMapper appServiceMapper;
+  private final ServicePreviewService previewService;
 
   @GetMapping("/{id}")
   public AppServiceResponse getAppService(
@@ -48,6 +52,20 @@ public class AppServiceController {
       @AuthenticationPrincipal Jwt jwt, @RequestBody @Valid AppServiceCreationDto appService) {
     UUID KeycloakId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
     return appServiceMapper.toResponse(appServiceService.createService(KeycloakId, appService));
+  }
+
+  @PostMapping("/preview")
+  public ServicePreviewResponse previewAppService(
+      @AuthenticationPrincipal Jwt jwt, @RequestBody @Valid AppServiceCreationDto appService) {
+    UUID keycloakId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
+    return previewService.preview(keycloakId, appService);
+  }
+
+  @GetMapping("/preview/{previewId}/file")
+  public PreviewFileResponse previewFile(
+      @AuthenticationPrincipal Jwt jwt, @PathVariable String previewId, @RequestParam String path) {
+    UUID keycloakId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
+    return previewService.file(keycloakId, previewId, path);
   }
 
   @DeleteMapping("/{id}")

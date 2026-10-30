@@ -1,0 +1,44 @@
+plugins {
+    id "java"
+    id "org.springframework.boot" version "3.3.4"
+    id "io.spring.dependency-management" version "1.1.6"
+}
+
+group = [[ quote .PackageName ]]
+version = "0.0.1-SNAPSHOT"
+description = [[ quote .Description ]]
+
+repositories {
+    mavenCentral()
+}
+[[- if or (has "database") (has "messaging") ]]
+
+// Testcontainers before 1.21.4 cannot talk to Docker Engine 29+.
+ext["testcontainers.version"] = "1.21.4"
+[[- end ]]
+
+dependencies {
+    implementation "org.springframework.boot:spring-boot-starter-web"
+    implementation "org.springframework.boot:spring-boot-starter-actuator"
+    implementation "io.micrometer:micrometer-registry-prometheus"
+[[- range .Dependencies ]]
+    [[ gradleConfiguration .Scope ]] "[[ .Group ]]:[[ .Artifact ]][[ with .Version ]]:[[ . ]][[ end ]]"
+[[- end ]]
+[[- if and (has "flyway") (has "postgresql") ]]
+    implementation "org.flywaydb:flyway-database-postgresql"
+[[- end ]]
+[[- if and (has "flyway") (has "mysql") ]]
+    implementation "org.flywaydb:flyway-mysql"
+[[- end ]]
+    testImplementation "org.springframework.boot:spring-boot-starter-test"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+// Compile for the selected Java release with whichever JDK runs Gradle (no toolchain download).
+tasks.withType(JavaCompile).configureEach {
+    options.release = [[ .Vars.JAVA_VERSION ]]
+}
+
+tasks.named("test") {
+    useJUnitPlatform()
+}

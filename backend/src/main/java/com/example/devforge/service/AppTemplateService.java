@@ -1,6 +1,7 @@
 package com.example.devforge.service;
 
 import com.example.devforge.dto.TemplateFilter;
+import com.example.devforge.dto.TemplateOptionsResponse;
 import com.example.devforge.entity.AppTemplate;
 import com.example.devforge.entity.TemplateFramework;
 import com.example.devforge.entity.TemplateLanguage;
@@ -19,4 +20,6 @@ public interface AppTemplateService {
   Page<AppTemplate> getTemplatesByFramework(TemplateFramework framework, Pageable pageable);
 
   Page<AppTemplate> getTemplatesByFilter(TemplateFilter templateFilter, Pageable pageable);
+
+  TemplateOptionsResponse getOptions(UUID id);
 }

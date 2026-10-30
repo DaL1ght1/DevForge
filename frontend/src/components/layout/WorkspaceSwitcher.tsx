@@ -5,10 +5,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { useWorkspace } from "@/context/WorkspaceContext";
 import { cn } from "@/lib/utils";
 
-/**
- * Native select for the active workspace. On a workspace settings page, switching also navigates
- * to the newly selected workspace so the page and the switcher never disagree.
- */
 export function WorkspaceSwitcher({ className }: { className?: string }) {
   const id = useId();
   const router = useRouter();

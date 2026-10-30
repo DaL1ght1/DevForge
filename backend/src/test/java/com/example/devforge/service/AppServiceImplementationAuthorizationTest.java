@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import com.example.devforge.client.ServiceBlueprintResolver;
+import com.example.devforge.client.TemplateContextResolver;
 import com.example.devforge.dto.AppServiceCreationDto;
 import com.example.devforge.entity.AppService;
 import com.example.devforge.entity.AppTemplate;
@@ -23,6 +25,9 @@ import com.example.devforge.repository.ProvisioningJobRepository;
 import com.example.devforge.repository.TemplateVersionRepository;
 import com.example.devforge.repository.UserRepository;
 import com.example.devforge.service.implementation.AppServiceImplementation;
+import com.example.devforge.template.TemplateManifestCache;
+import com.example.devforge.template.TemplateManifestParser;
+import com.example.devforge.template.TemplateSelectionResolver;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -30,6 +35,15 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
 
 class AppServiceImplementationAuthorizationTest {
+
+  private static final String TEST_MANIFEST =
+      """
+      name: spring
+      version: 1.0.0
+      language: JAVA
+      framework: SPRING_BOOT
+      buildTool: MAVEN
+      """;
 
   private final AppServiceRepository repository = mock(AppServiceRepository.class);
   private final UserRepository userRepository = mock(UserRepository.class);
@@ -41,13 +55,16 @@ class AppServiceImplementationAuthorizationTest {
       new AppServiceImplementation(
           repository,
           userRepository,
-          templateVersionRepository,
-          null,
           null,
           eventPublisher,
           mock(ProvisioningJobRepository.class),
           workspaceService,
-          mock(GithubInstallationRepository.class));
+          mock(GithubInstallationRepository.class),
+          new ServiceBlueprintResolver(
+              templateVersionRepository,
+              new TemplateManifestCache(new TemplateManifestParser()),
+              new TemplateSelectionResolver(),
+              new TemplateContextResolver()));
 
   private final UUID userA = UUID.randomUUID();
   private final UUID orgId = UUID.randomUUID();
@@ -138,7 +155,7 @@ class AppServiceImplementationAuthorizationTest {
   }
 
   private AppServiceCreationDto orgDto(String name) {
-    return new AppServiceCreationDto(name, null, UUID.randomUUID(), "NONE", orgId);
+    return new AppServiceCreationDto(name, null, UUID.randomUUID(), orgId);
   }
 
   private void stubTemplateAndUser() {
@@ -146,7 +163,7 @@ class AppServiceImplementationAuthorizationTest {
         TemplateVersion.builder()
             .template(AppTemplate.builder().name("Spring").stableKey("spring").build())
             .version("1.0.0")
-            .manifest("variables: []")
+            .manifest(TEST_MANIFEST)
             .build();
     when(templateVersionRepository.findById(any())).thenReturn(Optional.of(version));
     when(userRepository.findByKeycloakId(userA))
